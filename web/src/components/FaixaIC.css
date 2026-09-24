@@ -1,0 +1,105 @@
+.faixa-ic,
+.faixa-ic-eixo {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  width: var(--size-plot);
+  flex-shrink: 0;
+}
+.faixa-ic {
+  height: var(--size-plot-height);
+}
+.faixa-ic--mini {
+  width: var(--size-plot-mini);
+  height: 1rem;
+}
+
+.faixa-ic__trilho {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 6px;
+  transform: translateY(-50%);
+  border-radius: var(--radius-pill);
+  background: var(--color-data-track);
+}
+.faixa-ic--mini .faixa-ic__trilho {
+  height: 4px;
+}
+.faixa-ic__meio {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  background: var(--color-data-grid);
+}
+.faixa-ic__ic {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--x) * 100%);
+  width: calc(var(--w) * 100%);
+  min-width: 2px;
+  height: 6px;
+  transform: translateY(-50%);
+  border-radius: var(--radius-pill);
+  background: var(--color-data-ci-neutral);
+}
+.faixa-ic--mini .faixa-ic__ic {
+  height: 4px;
+}
+.faixa-ic--destaque .faixa-ic__ic {
+  background: var(--color-data-ci);
+}
+.faixa-ic__limite {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--x) * 100%);
+  width: 2px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  background: var(--color-text-tertiary);
+}
+.faixa-ic--mini .faixa-ic__limite {
+  display: none;
+}
+.faixa-ic--destaque .faixa-ic__limite {
+  width: 3px;
+  height: 16px;
+  background: var(--color-signal);
+  box-shadow: 0 0 0 1.5px var(--plot-ground, var(--color-surface));
+}
+.faixa-ic__ponto {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--x) * 100%);
+  width: var(--d);
+  height: var(--d);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--color-data-point);
+  box-shadow: 0 0 0 2px var(--plot-ground, var(--color-surface));
+}
+
+.faixa-ic-eixo {
+  height: var(--text-caption-line);
+  font-size: 0.6875rem;
+  line-height: var(--text-caption-line);
+  color: var(--color-text-tertiary);
+}
+.faixa-ic-eixo__rotulo {
+  position: absolute;
+  top: 0;
+  left: calc(var(--x) * 100%);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.faixa-ic-eixo__rotulo:first-child {
+  transform: none;
+}
+.faixa-ic-eixo__rotulo:last-child {
+  transform: translateX(-100%);
+}

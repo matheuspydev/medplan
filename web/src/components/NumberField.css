@@ -1,0 +1,13 @@
+.campo-numero {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.campo-numero__input {
+  width: 5rem;
+  text-align: right;
+}
+.campo-numero__unidade {
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}

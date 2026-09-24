@@ -1,0 +1,10 @@
+# Fim de linha normalizado no repositório (LF) e convertido na cópia de trabalho.
+# Sem isso, Windows e macOS marcam todo arquivo como modificado.
+* text=auto eol=lf
+
+# Binários: nunca converter.
+*.webp binary
+*.png  binary
+*.jpg  binary
+*.woff2 binary
+*.db   binary

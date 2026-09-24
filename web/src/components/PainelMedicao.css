@@ -1,0 +1,56 @@
+.painel-medicao {
+  position: relative;
+  min-width: 0;
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.painel-medicao--medicao {
+  padding: var(--space-6) var(--space-6) var(--space-5);
+}
+.painel-medicao--formulario {
+  padding: var(--space-8);
+}
+
+.painel-medicao__cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin-bottom: var(--space-5);
+}
+.painel-medicao__textos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.painel-medicao__titulo {
+  font-size: var(--text-title-size);
+  line-height: var(--text-title-line);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  color: var(--color-text-primary);
+}
+.painel-medicao__titulo:focus {
+  outline: none;
+}
+.painel-medicao__subtitulo {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-base-size);
+  line-height: var(--text-base-line);
+}
+.painel-medicao__lateral {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+@media (max-width: 767.98px) {
+  .painel-medicao--medicao,
+  .painel-medicao--formulario {
+    padding: var(--space-5) var(--space-4);
+  }
+}

@@ -1,0 +1,30 @@
+.painel-falha {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-6);
+  border-radius: var(--radius-card);
+  background: var(--color-error-tint);
+  color: var(--color-text-primary);
+}
+.painel-falha__icone {
+  color: var(--color-error);
+  margin-top: 2px;
+}
+.painel-falha__corpo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.painel-falha__titulo {
+  font-weight: var(--font-weight-semibold);
+}
+.painel-falha__texto {
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
+  color: var(--color-text-secondary);
+}
+.painel-falha__acao {
+  margin-top: var(--space-1);
+}

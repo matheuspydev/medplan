@@ -1,0 +1,38 @@
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+}
+.stepper__botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: calc(var(--size-control) - 4px);
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-action);
+}
+.stepper__botao:hover:not(:disabled) {
+  background: var(--color-surface);
+  box-shadow: var(--shadow-thumb);
+}
+.stepper__botao:disabled {
+  color: var(--color-text-disabled);
+}
+.stepper__input.controle-texto {
+  width: 3rem;
+  min-height: calc(var(--size-control) - 4px);
+  padding: 0;
+  background: transparent;
+  text-align: center;
+  font-weight: var(--font-weight-semibold);
+}
+.stepper__input:focus-visible {
+  position: relative;
+  z-index: 1;
+}

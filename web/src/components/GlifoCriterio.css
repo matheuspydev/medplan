@@ -1,0 +1,14 @@
+.glifo-criterio {
+  display: inline-flex;
+  width: 8px;
+  height: 8px;
+}
+.glifo-criterio--mantido {
+  color: var(--color-text-primary);
+}
+.glifo-criterio--ignorado {
+  color: var(--color-text-tertiary);
+}
+.glifo-criterio--desvio {
+  color: var(--color-deviation);
+}

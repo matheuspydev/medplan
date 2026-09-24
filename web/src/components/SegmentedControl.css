@@ -1,0 +1,70 @@
+/* Controle segmentado no estilo iOS: trilho cinza, opção escolhida em "pílula" branca com sombra. */
+.segmentado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+}
+.segmentado--grade {
+  display: grid;
+}
+.segmentado__opcao {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* rádio nativo invisível cobrindo o segmento: mantém teclado e leitura de tela nativos */
+.segmentado__radio {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.segmentado__radio:disabled {
+  cursor: not-allowed;
+}
+.segmentado__rotulo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: calc(var(--size-control) - 4px);
+  padding: 0 var(--space-3);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  font-size: var(--text-table-size);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  text-align: center;
+  transition: background-color var(--duration-fast) var(--easing-standard), box-shadow var(--duration-fast) var(--easing-standard);
+}
+.segmentado__radio:hover:not(:disabled):not(:checked) + .segmentado__rotulo {
+  background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+}
+.segmentado__radio:checked + .segmentado__rotulo {
+  background: var(--color-surface);
+  box-shadow: var(--shadow-thumb);
+  font-weight: var(--font-weight-semibold);
+}
+:root[data-theme='dark'] .segmentado__radio:checked + .segmentado__rotulo {
+  background: #636366;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .segmentado__radio:checked + .segmentado__rotulo {
+    background: #636366;
+  }
+}
+.segmentado__radio:focus-visible + .segmentado__rotulo {
+  outline: var(--focus-width) solid var(--color-focus);
+  outline-offset: 0;
+}
+.segmentado__radio:disabled + .segmentado__rotulo {
+  color: var(--color-text-disabled);
+}
+.segmentado[aria-invalid='true'] {
+  box-shadow: inset 0 0 0 1px var(--color-error);
+}

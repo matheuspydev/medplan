@@ -1,0 +1,7 @@
+.campo-data.controle-texto {
+  width: 11rem;
+}
+.campo-data::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.55;
+}

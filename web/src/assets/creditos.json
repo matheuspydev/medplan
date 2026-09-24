@@ -1,0 +1,24 @@
+[
+  {
+    "arquivos": ["imagens/metodologia-paquimetro-claro.webp", "imagens/metodologia-paquimetro-escuro.webp"],
+    "uso": "Cabeçalho da Metodologia",
+    "descricao": "Macro de escala de paquímetro (nônio)",
+    "autor": "Bozhin Karaivanov",
+    "servico": "Unsplash",
+    "pagina_origem": "https://unsplash.com/photos/AgxK4Ohn1Cw",
+    "licenca": "Licença Unsplash",
+    "url_licenca": "https://unsplash.com/license",
+    "modificacao": "recorte; versão escura com brilho reduzido"
+  },
+  {
+    "arquivos": ["imagens/metodologia-corredor-claro.webp", "imagens/metodologia-corredor-escuro.webp"],
+    "uso": "Metodologia, seção “O que este protótipo é e não é”",
+    "descricao": "Corredor hospitalar vazio",
+    "autor": "Renata Rafa",
+    "servico": "Pexels",
+    "pagina_origem": "https://www.pexels.com/photo/bright-hospital-corridor-with-windows-37036967/",
+    "licenca": "Licença Pexels",
+    "url_licenca": "https://www.pexels.com/license/",
+    "modificacao": "recorte; versão escura com brilho reduzido"
+  }
+]

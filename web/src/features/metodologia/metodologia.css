@@ -1,0 +1,301 @@
+/* Link "Texto ›" para a Metodologia (botão com aparência de link). */
+.link-metodologia {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-action);
+  font-size: inherit;
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+.link-metodologia:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---- conteúdo ------------------------------------------------------------------ */
+.metodologia {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-bottom: var(--space-8);
+}
+.metodologia--drawer {
+  padding: var(--space-5) var(--space-6) var(--space-8);
+}
+.metodologia__topo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.metodologia__indice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+}
+.metodologia__indice button {
+  min-height: 2rem;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+  color: var(--color-text-primary);
+  font-size: var(--text-table-size);
+  font-weight: var(--font-weight-medium);
+  transition: background-color var(--duration-fast) var(--easing-standard);
+}
+.metodologia__indice button:hover {
+  background: color-mix(in srgb, var(--color-text-primary) 11%, transparent);
+}
+.metodologia__indice .num {
+  margin-right: var(--space-2);
+  color: var(--color-text-tertiary);
+}
+
+.metodologia__secao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  scroll-margin-top: var(--space-4);
+}
+.metodologia--pagina .metodologia__secao {
+  padding: var(--space-10) var(--space-10) var(--space-8);
+  border-radius: 24px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  scroll-margin-top: calc(var(--shell-topo) + var(--space-4));
+}
+.metodologia--drawer .metodologia__secao {
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-rule-hairline);
+}
+.metodologia__titulo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-1);
+  font-size: 1.75rem;
+  line-height: 2.125rem;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+}
+.metodologia--drawer .metodologia__titulo {
+  font-size: var(--text-title-size);
+  line-height: var(--text-title-line);
+}
+.metodologia__titulo:focus {
+  outline: none;
+}
+.metodologia__titulo .num {
+  color: var(--color-action);
+}
+.metodologia__secao p,
+.metodologia__secao li {
+  color: var(--color-text-secondary);
+  font-size: var(--text-prose-size);
+  line-height: var(--text-prose-line);
+  max-width: var(--measure-prose);
+}
+.metodologia__secao strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+.metodologia__secao .caption {
+  font-size: var(--text-table-size);
+  line-height: 1.4;
+  color: var(--color-text-tertiary);
+}
+.metodologia__secao ul {
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.metodologia__nota {
+  color: var(--color-text-secondary);
+}
+.metodologia__formula {
+  padding: var(--space-5);
+  overflow-x: auto;
+  border-radius: var(--radius-inner);
+  background: var(--color-surface-sunken);
+  font-family: var(--font-mono);
+  font-size: var(--text-table-size);
+  line-height: 1.6;
+  white-space: pre;
+}
+
+/* tabela da escada esquemática */
+.metodologia__rolagem {
+  overflow-x: auto;
+}
+.metodologia__tabela {
+  width: 100%;
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
+}
+.metodologia__tabela th,
+.metodologia__tabela td {
+  padding: var(--space-3) var(--space-3) var(--space-3) 0;
+  border-bottom: 1px solid var(--color-rule-hairline);
+  text-align: left;
+  vertical-align: top;
+}
+.metodologia__tabela thead th {
+  vertical-align: bottom;
+}
+.metodologia__tabela tbody th {
+  font-weight: var(--font-weight-medium);
+}
+.metodologia__tabela td {
+  color: var(--color-text-secondary);
+}
+.metodologia__glifos {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding-top: 5px;
+}
+
+/* diagrama de censura */
+.metodologia__censura {
+  list-style: none;
+  padding: var(--space-5) !important;
+  gap: var(--space-3) !important;
+  border-radius: var(--radius-inner);
+  background: var(--color-surface-sunken);
+}
+.metodologia__censura li {
+  display: grid;
+  grid-template-columns: minmax(10rem, 16rem) 1fr;
+  gap: var(--space-4);
+  align-items: start;
+  font-size: var(--text-table-size) !important;
+  line-height: var(--text-table-line) !important;
+}
+.metodologia__censura svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  color: var(--color-action);
+}
+.metodologia__censura .metodologia__eixo-censura {
+  display: flex;
+  justify-content: space-between;
+  padding-right: 20%;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-caption-size);
+}
+
+/* exemplo de ordem */
+.metodologia__exemplo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: var(--radius-inner);
+  background: var(--color-surface-sunken);
+  --plot-ground: var(--color-surface-sunken);
+}
+.metodologia__exemplo-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+}
+.metodologia__exemplo-nome {
+  flex: 0 0 8rem;
+  font-weight: var(--font-weight-medium);
+}
+
+/* ---- fotos --------------------------------------------------------------------- */
+.foto-metodologia {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.foto-metodologia__moldura {
+  position: relative;
+  aspect-ratio: 16 / 6;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-sunken);
+}
+.foto-metodologia__moldura picture {
+  display: block;
+  height: 100%;
+}
+.foto-metodologia__moldura img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.foto-metodologia__credito {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+}
+
+.creditos {
+  list-style: none;
+  padding: 0 !important;
+}
+.creditos li {
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-rule-hairline);
+}
+
+/* ---- página /metodologia ---------------------------------------------------------- */
+.pagina-metodologia {
+  padding: var(--space-12) var(--space-6) var(--space-16);
+}
+.pagina-metodologia__coluna {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 60rem;
+  margin: 0 auto;
+}
+.pagina-metodologia__topo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+  text-align: center;
+}
+.pagina-metodologia__topo .titulo-tela {
+  font-size: var(--text-hero-size);
+  line-height: var(--text-hero-line);
+  font-weight: var(--font-weight-bold);
+}
+.pagina-metodologia__topo .titulo-tela:focus {
+  outline: none;
+}
+.pagina-metodologia__sub {
+  max-width: 34rem;
+  color: var(--color-text-tertiary);
+  font-size: 1.3125rem;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+@media (max-width: 767.98px) {
+  .metodologia--pagina .metodologia__secao {
+    padding: var(--space-6) var(--space-5);
+  }
+  .metodologia__censura li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media print {
+  .foto-metodologia {
+    display: none;
+  }
+}

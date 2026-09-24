@@ -1,0 +1,32 @@
+/* Percentual sempre colado ao n e ao IC, na mesma linha, sem quebra. */
+.proporcao {
+  white-space: nowrap;
+  font-variant-numeric: var(--numeric);
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-regular);
+}
+.proporcao--linha {
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
+}
+.proporcao--destaque {
+  font-size: var(--text-base-size);
+  line-height: var(--text-base-line);
+}
+.proporcao__pct {
+  display: inline-block;
+  min-width: var(--readout-pct-slot);
+  text-align: right;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+.proporcao__inf {
+  color: var(--color-text-tertiary);
+}
+.proporcao__inf--sinal {
+  color: var(--color-signal);
+  font-weight: var(--font-weight-semibold);
+}
+.proporcao--insuficiente {
+  color: var(--color-text-tertiary);
+}

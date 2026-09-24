@@ -1,0 +1,68 @@
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-base-size);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-fast) var(--easing-standard),
+    transform var(--duration-fast) var(--easing-standard),
+    color var(--duration-fast) var(--easing-standard);
+}
+.botao:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.botao__icone {
+  display: inline-flex;
+}
+.botao__atalho {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-size);
+  font-weight: var(--font-weight-regular);
+  opacity: 0.7;
+}
+
+.botao--primario {
+  min-height: var(--size-control-lg);
+  padding: 0 var(--space-6);
+  border: 0;
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font-weight: var(--font-weight-semibold);
+}
+.botao--primario:hover:not(:disabled) {
+  background: var(--color-action-hover);
+}
+
+.botao--secundario {
+  min-height: var(--size-control);
+  padding: 0 var(--space-4);
+  border: 0;
+  background: color-mix(in srgb, var(--color-text-primary) 7%, transparent);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+.botao--secundario:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-text-primary) 11%, transparent);
+}
+
+.botao--link {
+  min-height: var(--size-hit-min);
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-action);
+}
+.botao--link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.botao:disabled {
+  opacity: 0.45;
+}
