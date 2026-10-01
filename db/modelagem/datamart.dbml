@@ -1,0 +1,91 @@
+// MedPlan — Data Mart de prescrição e tolerabilidade em psiquiatria
+// Projeto de extensão PUC Minas · Hospital Mater Dei — Unidade Contorno
+// Grão do fato: um tratamento (prescrição + desfecho).
+// Chave de dimensão em fato é sempre NOT NULL: desconhecido vira linha "não informado" na dimensão.
+//
+// Fonte do diagrama. Cole em https://dbdiagram.io/d para visualizar ou editar.
+// O DDL PostgreSQL derivado está em db/postgres/010_datamart.sql.
+
+Table fato_tratamento [headercolor: #1A5FB4] {
+  sk_tratamento        integer  [pk]
+  sk_perfil            integer  [not null]
+  sk_medicamento       integer  [not null]
+  sk_cid_principal     integer  [not null]
+  sk_tempo_inicio      integer  [not null]
+  status               varchar  [not null, note: 'em uso, concluído, descontinuado por reação adversa, por ineficácia, por não adesão, outro, perdido de seguimento']
+  linha_tratamento     smallint [null]
+  dias_observados      integer  [not null]
+  avaliavel_horizonte  smallint [not null, note: 'denominador da taxa']
+  permaneceu_horizonte smallint [not null, note: 'numerador da taxa']
+  censurado_horizonte  smallint [not null, note: 'seguimento curto: fica fora do denominador']
+  qtd_reacoes          smallint [not null]
+}
+
+Table fato_reacao_adversa [headercolor: #1A5FB4] {
+  sk_reacao_fato       integer  [pk]
+  sk_tratamento        integer  [not null]
+  sk_reacao            integer  [not null]
+  dias_ate_inicio      integer  [null]
+  gravidade_observada  varchar  [not null]
+  levou_descontinuacao smallint [not null]
+}
+
+Table dim_perfil_paciente [headercolor: #2EC27E, note: 'Pseudonimizado: sem nome, CPF, prontuário, nascimento ou endereço.'] {
+  sk_perfil        integer  [pk]
+  faixa_etaria     varchar  [not null]
+  sexo             varchar  [not null]
+  faixa_imc        varchar  [null]
+  tabagismo        varchar  [not null]
+  qtd_comorbidades smallint [not null]
+}
+
+Table dim_cid10 [headercolor: #2EC27E, note: 'Dois papéis: diagnóstico principal no fato e comorbidade pela ponte.'] {
+  sk_cid    integer [pk]
+  codigo    varchar [not null]
+  descricao varchar [not null]
+  grupo     varchar [not null, note: 'ex.: F30-F39']
+  tipo      varchar [not null, note: 'psiquiatrica | clinica']
+}
+
+Table dim_medicamento [headercolor: #2EC27E] {
+  sk_medicamento     integer [pk]
+  principio_ativo    varchar [not null]
+  classe_terapeutica varchar [not null]
+  codigo_atc         varchar [not null]
+}
+
+Table dim_reacao_adversa [headercolor: #2EC27E] {
+  sk_reacao        integer [pk]
+  termo            varchar [not null]
+  soc              varchar [not null]
+  gravidade_padrao varchar [not null]
+}
+
+Table dim_tempo [headercolor: #2EC27E] {
+  sk_tempo  integer  [pk, note: 'aaaammdd']
+  data      date     [not null]
+  mes       smallint [not null]
+  trimestre smallint [not null]
+  ano       smallint [not null]
+}
+
+Table ponte_perfil_comorbidade [headercolor: #E5A50A, note: 'Comorbidade é muitos-para-muitos; sem a ponte o fato duplicaria.'] {
+  sk_perfil integer [not null]
+  sk_cid    integer [not null]
+  tipo      varchar [not null]
+
+  indexes {
+    (sk_perfil, sk_cid) [pk]
+  }
+}
+
+Ref: fato_tratamento.sk_perfil        > dim_perfil_paciente.sk_perfil
+Ref: fato_tratamento.sk_medicamento   > dim_medicamento.sk_medicamento
+Ref: fato_tratamento.sk_cid_principal > dim_cid10.sk_cid
+Ref: fato_tratamento.sk_tempo_inicio  > dim_tempo.sk_tempo
+
+Ref: fato_reacao_adversa.sk_tratamento > fato_tratamento.sk_tratamento
+Ref: fato_reacao_adversa.sk_reacao     > dim_reacao_adversa.sk_reacao
+
+Ref: ponte_perfil_comorbidade.sk_perfil > dim_perfil_paciente.sk_perfil
+Ref: ponte_perfil_comorbidade.sk_cid    > dim_cid10.sk_cid
