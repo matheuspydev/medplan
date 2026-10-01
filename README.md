@@ -3,11 +3,15 @@
 Fase 0: protótipo de validação. Serve para a médica olhar a lógica de coorte e
 dizer onde ela está errada, antes de existir modelo treinado.
 
+Projeto de extensão do curso de Sistemas de Informação (EAD) da PUC Minas, em parceria com
+o Hospital Mater Dei — Unidade Contorno. Contexto, equipe e prazos em `PROJETO_ACADEMICO.md`.
+
 - `arquitetura_cdss_psiquiatria.md` — spec do produto
 - `MODELO_DADOS_V2.md` — schema revisado, com a justificativa de cada mudança
 - `ARQUITETURA_INTERFACE.md` — arquitetura da interface web, design system e UX
 - `CLAUDE.md` — regras de domínio e de código
 - `CONTRIBUTING.md` — como rodar, testar e o que nunca pode entrar num commit
+- `PROJETO_ACADEMICO.md` — o projeto de extensão da PUC Minas e o que já foi entregue
 
 Requisitos: Python 3.11 ou mais novo (desenvolvido com 3.13) e, para a interface web,
 Node 20 ou mais novo (desenvolvido com 24).
