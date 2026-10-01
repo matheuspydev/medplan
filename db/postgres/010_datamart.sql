@@ -7,9 +7,6 @@ CREATE TABLE "fato_tratamento" (
   "status" varchar NOT NULL,
   "linha_tratamento" smallint,
   "dias_observados" integer NOT NULL,
-  "avaliavel_horizonte" smallint NOT NULL,
-  "permaneceu_horizonte" smallint NOT NULL,
-  "censurado_horizonte" smallint NOT NULL,
   "qtd_reacoes" smallint NOT NULL
 );
 
@@ -70,11 +67,7 @@ CREATE TABLE "ponte_perfil_comorbidade" (
 
 COMMENT ON COLUMN "fato_tratamento"."status" IS 'em uso, concluído, descontinuado por reação adversa, por ineficácia, por não adesão, outro, perdido de seguimento';
 
-COMMENT ON COLUMN "fato_tratamento"."avaliavel_horizonte" IS 'denominador da taxa';
-
-COMMENT ON COLUMN "fato_tratamento"."permaneceu_horizonte" IS 'numerador da taxa';
-
-COMMENT ON COLUMN "fato_tratamento"."censurado_horizonte" IS 'seguimento curto: fica fora do denominador';
+COMMENT ON COLUMN "fato_tratamento"."dias_observados" IS 'com o status, classifica o tratamento como mantido, descontinuado ou censurado em qualquer horizonte; o horizonte é parâmetro da consulta, não do modelo';
 
 COMMENT ON TABLE "dim_perfil_paciente" IS 'Pseudonimizado: sem nome, CPF, prontuário, nascimento ou endereço.';
 

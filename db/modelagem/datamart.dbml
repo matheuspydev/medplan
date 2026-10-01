@@ -14,10 +14,7 @@ Table fato_tratamento [headercolor: #1A5FB4] {
   sk_tempo_inicio      integer  [not null]
   status               varchar  [not null, note: 'em uso, concluído, descontinuado por reação adversa, por ineficácia, por não adesão, outro, perdido de seguimento']
   linha_tratamento     smallint [null]
-  dias_observados      integer  [not null]
-  avaliavel_horizonte  smallint [not null, note: 'denominador da taxa']
-  permaneceu_horizonte smallint [not null, note: 'numerador da taxa']
-  censurado_horizonte  smallint [not null, note: 'seguimento curto: fica fora do denominador']
+  dias_observados      integer  [not null, note: 'com o status, classifica o tratamento como mantido, descontinuado ou censurado em qualquer horizonte; o horizonte é parâmetro da consulta, não do modelo']
   qtd_reacoes          smallint [not null]
 }
 
