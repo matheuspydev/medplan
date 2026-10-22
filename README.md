@@ -70,6 +70,7 @@ O `app.py` (Streamlit) continua sendo a tela da validação clínica.
 
 ```
 db/postgres/     DDL canônico — o modelo de referência para a fase 1
+db/modelagem/    Data Mart: diagrama (DBML) e dicionário de dados
 db/sqlite/       schema do protótipo, descartável, sem RLS
 db/seeds/        CID-10, ATC, termos de reação adversa
 medplan/

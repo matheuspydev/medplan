@@ -1,88 +1,109 @@
 // MedPlan — Data Mart de prescrição e tolerabilidade em psiquiatria
 // Projeto de extensão PUC Minas · Hospital Mater Dei — Unidade Contorno
-// Grão do fato: um tratamento (prescrição + desfecho).
+// Constelação de fatos: dois fatos que compartilham dimensões.
+// Grão de fato_atendimento: um atendimento (consulta) de um paciente.
+// Grão de fato_reacao_adversa: uma reação adversa relatada em um atendimento.
+// Toda dimensão tem chave substituta inteira autoincremento; o código de mercado
+// (CID, ATC, MedDRA) fica em coluna própria e é resolvido no de-para da carga.
 // Chave de dimensão em fato é sempre NOT NULL: desconhecido vira linha "não informado" na dimensão.
+// Dicionário de dados: db/modelagem/dicionario_dados.md
 //
 // Fonte do diagrama. Cole em https://dbdiagram.io/d para visualizar ou editar.
 // O DDL PostgreSQL derivado está em db/postgres/010_datamart.sql.
 
-Table fato_tratamento [headercolor: #1A5FB4] {
-  sk_tratamento        integer  [pk]
-  sk_perfil            integer  [not null]
-  sk_medicamento       integer  [not null]
-  sk_cid_principal     integer  [not null]
-  sk_tempo_inicio      integer  [not null]
-  status               varchar  [not null, note: 'em uso, concluído, descontinuado por reação adversa, por ineficácia, por não adesão, outro, perdido de seguimento']
-  linha_tratamento     smallint [null]
-  dias_observados      integer  [not null, note: 'com o status, classifica o tratamento como mantido, descontinuado ou censurado em qualquer horizonte; o horizonte é parâmetro da consulta, não do modelo']
-  qtd_reacoes          smallint [not null]
+Table fato_atendimento [headercolor: #1A5FB4] {
+  sk_atendimento   integer  [pk, increment]
+  sk_paciente      integer  [not null]
+  sk_faixa_etaria  integer  [not null]
+  sk_faixa_imc     integer  [not null]
+  sk_cid_principal integer  [not null]
+  sk_medicamento   integer  [not null, note: 'medicamento prescrito neste atendimento']
+  sk_status        integer  [not null]
+  sk_tempo         integer  [not null, note: 'data do atendimento']
+  tabagista        boolean  [not null, note: 'binário a confirmar com a médica']
+  qtd_comorbidades smallint [not null]
+  linha_tratamento smallint [null, note: 'ordem da tentativa terapêutica: 1 = primeiro medicamento, 2 = segundo...']
+  dias_observados  integer  [not null, note: 'dias desde o início do medicamento até este atendimento; com o status, classifica o tratamento em qualquer horizonte']
+  qtd_reacoes      smallint [not null]
 }
 
 Table fato_reacao_adversa [headercolor: #1A5FB4] {
-  sk_reacao_fato       integer  [pk]
-  sk_tratamento        integer  [not null]
-  sk_reacao            integer  [not null]
-  dias_ate_inicio      integer  [null]
-  gravidade_observada  varchar  [not null]
-  levou_descontinuacao smallint [not null]
+  sk_reacao_fato              integer [pk, increment]
+  sk_atendimento              integer [not null, note: 'atendimento em que a reação foi relatada']
+  sk_reacao                   integer [not null]
+  sk_medicamento              integer [not null, note: 'medicamento que causou a reação, não necessariamente o prescrito no atendimento']
+  sk_tempo_inicio_medicamento integer [not null]
+  sk_tempo_inicio_reacao      integer [not null]
+  dias_ate_reacao             integer [null, note: 'sk_tempo_inicio_reacao − sk_tempo_inicio_medicamento, em dias']
+  gravidade_observada         varchar [not null]
+  levou_descontinuacao        boolean [not null]
 }
 
-Table dim_perfil_paciente [headercolor: #2EC27E, note: 'Pseudonimizado: sem nome, CPF, prontuário, nascimento ou endereço.'] {
-  sk_perfil        integer  [pk]
-  faixa_etaria     varchar  [not null]
-  sexo             varchar  [not null]
-  faixa_imc        varchar  [null]
-  tabagismo        varchar  [not null]
-  qtd_comorbidades smallint [not null]
+Table dim_paciente [headercolor: #2EC27E, note: 'Pseudonimizado: sem nome, CPF, prontuário, nascimento ou endereço.'] {
+  sk_paciente       integer [pk, increment]
+  codigo_pseudonimo varchar [not null, unique]
+  sexo              char(1) [not null, note: 'F | M']
 }
 
-Table dim_cid10 [headercolor: #2EC27E, note: 'Dois papéis: diagnóstico principal no fato e comorbidade pela ponte.'] {
-  sk_cid    integer [pk]
-  codigo    varchar [not null]
+Table dim_faixa_etaria [headercolor: #2EC27E, note: 'Faixas de órgão oficial (fonte a definir: IBGE ou Ministério da Saúde).'] {
+  sk_faixa_etaria integer  [pk, increment]
+  descricao       varchar  [not null]
+  idade_min       smallint [null]
+  idade_max       smallint [null]
+}
+
+Table dim_faixa_imc [headercolor: #2EC27E, note: 'Classificação de IMC da OMS.'] {
+  sk_faixa_imc integer      [pk, increment]
+  descricao    varchar      [not null]
+  imc_min      numeric(4,1) [null]
+  imc_max      numeric(4,1) [null]
+}
+
+Table dim_cid10 [headercolor: #2EC27E, note: 'Só os códigos relevantes ao atendimento psiquiátrico, filtrados na carga.'] {
+  sk_cid    integer [pk, increment]
+  codigo    varchar [not null, unique]
   descricao varchar [not null]
   grupo     varchar [not null, note: 'ex.: F30-F39']
   tipo      varchar [not null, note: 'psiquiatrica | clinica']
 }
 
-Table dim_medicamento [headercolor: #2EC27E] {
-  sk_medicamento     integer [pk]
+Table dim_medicamento [headercolor: #2EC27E, note: 'Só os medicamentos relevantes ao atendimento psiquiátrico, filtrados na carga.'] {
+  sk_medicamento     integer [pk, increment]
+  codigo_atc         varchar [not null, unique]
   principio_ativo    varchar [not null]
   classe_terapeutica varchar [not null]
-  codigo_atc         varchar [not null]
 }
 
-Table dim_reacao_adversa [headercolor: #2EC27E] {
-  sk_reacao        integer [pk]
+Table dim_reacao_adversa [headercolor: #2EC27E, note: 'Termos MedDRA; só as reações relevantes aos medicamentos da base.'] {
+  sk_reacao        integer [pk, increment]
   termo            varchar [not null]
   soc              varchar [not null]
   gravidade_padrao varchar [not null]
 }
 
-Table dim_tempo [headercolor: #2EC27E] {
+Table dim_status [headercolor: #2EC27E] {
+  sk_status integer [pk, increment]
+  descricao varchar [not null, unique, note: 'em uso, concluído, descontinuado por reação adversa, por ineficácia, por não adesão, outro, perdido de seguimento']
+}
+
+Table dim_tempo [headercolor: #2EC27E, note: 'Linha sk_tempo = 0 é "não informado": data, mes, trimestre e ano nulos.'] {
   sk_tempo  integer  [pk, note: 'aaaammdd']
-  data      date     [not null]
-  mes       smallint [not null]
-  trimestre smallint [not null]
-  ano       smallint [not null]
+  data      date     [null]
+  mes       smallint [null]
+  trimestre smallint [null]
+  ano       smallint [null]
 }
 
-Table ponte_perfil_comorbidade [headercolor: #E5A50A, note: 'Comorbidade é muitos-para-muitos; sem a ponte o fato duplicaria.'] {
-  sk_perfil integer [not null]
-  sk_cid    integer [not null]
-  tipo      varchar [not null]
+Ref: fato_atendimento.sk_paciente      > dim_paciente.sk_paciente
+Ref: fato_atendimento.sk_faixa_etaria  > dim_faixa_etaria.sk_faixa_etaria
+Ref: fato_atendimento.sk_faixa_imc     > dim_faixa_imc.sk_faixa_imc
+Ref: fato_atendimento.sk_cid_principal > dim_cid10.sk_cid
+Ref: fato_atendimento.sk_medicamento   > dim_medicamento.sk_medicamento
+Ref: fato_atendimento.sk_status        > dim_status.sk_status
+Ref: fato_atendimento.sk_tempo         > dim_tempo.sk_tempo
 
-  indexes {
-    (sk_perfil, sk_cid) [pk]
-  }
-}
-
-Ref: fato_tratamento.sk_perfil        > dim_perfil_paciente.sk_perfil
-Ref: fato_tratamento.sk_medicamento   > dim_medicamento.sk_medicamento
-Ref: fato_tratamento.sk_cid_principal > dim_cid10.sk_cid
-Ref: fato_tratamento.sk_tempo_inicio  > dim_tempo.sk_tempo
-
-Ref: fato_reacao_adversa.sk_tratamento > fato_tratamento.sk_tratamento
-Ref: fato_reacao_adversa.sk_reacao     > dim_reacao_adversa.sk_reacao
-
-Ref: ponte_perfil_comorbidade.sk_perfil > dim_perfil_paciente.sk_perfil
-Ref: ponte_perfil_comorbidade.sk_cid    > dim_cid10.sk_cid
+Ref: fato_reacao_adversa.sk_atendimento              > fato_atendimento.sk_atendimento
+Ref: fato_reacao_adversa.sk_reacao                   > dim_reacao_adversa.sk_reacao
+Ref: fato_reacao_adversa.sk_medicamento              > dim_medicamento.sk_medicamento
+Ref: fato_reacao_adversa.sk_tempo_inicio_medicamento > dim_tempo.sk_tempo
+Ref: fato_reacao_adversa.sk_tempo_inicio_reacao      > dim_tempo.sk_tempo
