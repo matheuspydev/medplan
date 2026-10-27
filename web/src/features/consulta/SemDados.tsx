@@ -60,11 +60,13 @@ export function DadosInsuficientes({ resposta, refTitulo, onVerEscada, onRevisar
           Dados insuficientes
         </h2>
         <p className="dados-insuficientes__texto">
-          Nenhum medicamento atingiu n={formatarInteiro(nMinimo)} para este perfil, mesmo no nível {nivel.ordem}
-          {todosIgnorados ? ', com todos os critérios ignorados' : ''}.
+          Nenhum medicamento tem casos suficientes para este perfil: o mínimo é {plural(nMinimo, 'tratamento', 'tratamentos')}
+          {todosIgnorados ? ', e não chegou lá nem deixando de exigir todos os critérios possíveis' : ''}. Ausência de dado não é evidência
+          de que algum medicamento seja pior.
         </p>
         <p className="dados-insuficientes__detalhe">
-          {plural(nPerfis, 'perfil', 'perfis')} · maior n avaliável {formatarInteiro(degrau?.melhor_n_avaliavel ?? 0)}
+          {plural(nPerfis, 'paciente parecido', 'pacientes parecidos')} · o medicamento com mais casos teve{' '}
+          {plural(degrau?.melhor_n_avaliavel ?? 0, 'tratamento', 'tratamentos')}
           {cid && cid.grupo_amplia === false && (
             <>
               {' '}
@@ -74,7 +76,7 @@ export function DadosInsuficientes({ resposta, refTitulo, onVerEscada, onRevisar
         </p>
         <div className="dados-insuficientes__acoes">
           <Button variante="secundario" onClick={onVerEscada}>
-            Ver a escada
+            Ver como foi a busca
           </Button>
           <Button variante="secundario" onClick={onRevisar}>
             Revisar perfil

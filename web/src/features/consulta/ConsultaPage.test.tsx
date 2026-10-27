@@ -157,7 +157,7 @@ describe('<ConsultaPage>', () => {
     expect(caixa.querySelectorAll('s')).toHaveLength(3);
     expect(caixa.textContent).toContain('A coorte abaixo não corresponde exatamente ao perfil informado.');
     expect(screen.getByText('Parou aqui')).toBeTruthy();
-    expect(screen.getAllByText('não necessário')).toHaveLength(2);
+    expect(screen.getAllByText('Não foi necessário')).toHaveLength(2);
     expect(screen.getByText('Taxa pontual maior que a de Fármaco B, mas limite inferior do IC95% menor: n menor (29 vs. 34).')).toBeTruthy();
     expect(screen.getByText('22 tratamentos fora do denominador por seguimento menor que 84 dias.', { exact: false })).toBeTruthy();
     expect(screen.getByRole('img', { name: 'dados insuficientes; n igual a 12' }).textContent).toBe('dados insuficientes (n=12)');
@@ -239,7 +239,7 @@ describe('<ConsultaPage>', () => {
     expect(await screen.findByRole('heading', { name: 'Dados insuficientes' })).toBeTruthy();
     expect(screen.getByText('Último nível tentado')).toBeTruthy();
     expect(screen.queryByText('Parou aqui')).toBeNull();
-    expect(screen.getByText(/Nenhum medicamento atingiu n=100/).textContent).not.toMatch(/\d\s*%/);
+    expect(screen.getByText(/Nenhum medicamento tem casos suficientes para este perfil: o mínimo é 100 tratamentos/).textContent).not.toMatch(/\d\s*%/);
     expect(screen.getAllByText(/contém só/).length).toBeGreaterThan(0);
     expect(document.querySelector('.permanencia')).toBeNull();
     expect(screen.queryByText(/baixar|reduzir o n/i)).toBeNull();
