@@ -44,8 +44,13 @@ function linhasDesvio(leitura: AnaliseResposta | null): Partial<Record<'dx' | 's
   const sub = (criterio: string) => substituicoes.find((s) => s.criterio === criterio);
   const linhas: Partial<Record<'dx' | 'sexo' | 'faixa' | 'com', string>> = {};
 
-  if (ordem >= 2) linhas.com = `${prefixo}comorbidades não filtradas`;
-  else if (ordem === 1) linhas.com = `${prefixo}comorbidades clínicas não filtradas`;
+  // Sem comorbidade informada, o perfil completo só aceita quem não tem nenhuma: afrouxar faz entrar quem tem.
+  const semComorbidade = leitura.perfil.comorbidades.length === 0;
+  if (ordem >= 2) {
+    linhas.com = `${prefixo}${semComorbidade ? 'a coorte também inclui pacientes com comorbidades' : 'comorbidades não exigidas'}`;
+  } else if (ordem === 1) {
+    linhas.com = `${prefixo}${semComorbidade ? 'a coorte também inclui pacientes com comorbidades clínicas' : 'comorbidades clínicas não exigidas'}`;
+  }
 
   const faixa = sub('faixa etária');
   if (faixa) linhas.faixa = `${prefixo}coorte usou ${faixa.valor_usado}`;

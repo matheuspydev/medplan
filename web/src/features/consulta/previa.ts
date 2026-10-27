@@ -60,6 +60,13 @@ export function faixaAmpliada(codigo: string, catalogo: Catalogo): string | null
   return maximo === undefined ? null : `${minimo} a ${maximo} anos`;
 }
 
+/** Mesmo texto da API: sem comorbidade informada, afrouxar faz entrar quem tem comorbidade. */
+function comorbidades(informadas: string[]): { valor_informado: string; valor_usado: string } {
+  return informadas.length
+    ? { valor_informado: informadas.join(', '), valor_usado: 'qualquer comorbidade' }
+    : { valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' };
+}
+
 export function previaRelaxamento(perfil: PerfilPrevia, catalogo: Catalogo): ItemPrevia[] {
   const psiquiatricas = perfil.com.filter(ehPsiquiatrica);
   const clinicas = perfil.com.filter((c) => !ehPsiquiatrica(c));
@@ -68,8 +75,8 @@ export function previaRelaxamento(perfil: PerfilPrevia, catalogo: Catalogo): Ite
   const codigos = grupo ? catalogo.codigosDoGrupo(grupo).map((c) => c.codigo) : [];
 
   return [
-    { nivel: 1, criterio: 'comorbidades clínicas', valor_informado: clinicas.join(', ') || 'nenhuma', valor_usado: 'não filtradas' },
-    { nivel: 2, criterio: 'comorbidades psiquiátricas', valor_informado: psiquiatricas.join(', ') || 'nenhuma', valor_usado: 'não filtradas' },
+    { nivel: 1, criterio: 'comorbidades clínicas', ...comorbidades(clinicas) },
+    { nivel: 2, criterio: 'comorbidades psiquiátricas', ...comorbidades(psiquiatricas) },
     {
       nivel: 3,
       criterio: 'faixa etária',

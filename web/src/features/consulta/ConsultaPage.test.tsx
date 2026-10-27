@@ -9,8 +9,8 @@ import { REFERENCIAS_TESTE } from './teste-fixtures';
 // Resposta SINTÉTICA com a forma do contrato. Nomes são placeholders; proporções conferidas com ic_wilson
 // (valores de layout da spec, sem significado clínico).
 const substituicoes = [
-  { criterio: 'comorbidades clínicas', valor_informado: 'nenhuma', valor_usado: 'não filtradas' },
-  { criterio: 'comorbidades psiquiátricas', valor_informado: 'nenhuma', valor_usado: 'não filtradas' },
+  { criterio: 'comorbidades clínicas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
+  { criterio: 'comorbidades psiquiátricas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
   { criterio: 'faixa etária', valor_informado: '26 a 35 anos', valor_usado: '18 a 50 anos' },
   { criterio: 'sexo', valor_informado: 'feminino', valor_usado: 'todos' },
   {

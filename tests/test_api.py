@@ -327,9 +327,9 @@ class TestAnaliseControlada(ComBanco):
 
         self.assertEqual(subs[3], [
             {"criterio": "comorbidades clínicas", "valor_informado": "E66.9",
-             "valor_usado": "não filtradas"},
+             "valor_usado": "qualquer comorbidade"},
             {"criterio": "comorbidades psiquiátricas", "valor_informado": "F41.1",
-             "valor_usado": "não filtradas"},
+             "valor_usado": "qualquer comorbidade"},
             {"criterio": "faixa etária", "valor_informado": "26 a 35 anos",
              "valor_usado": "18 a 50 anos"},
         ])
@@ -376,7 +376,7 @@ class TestAnaliseControlada(ComBanco):
         alvo = PerfilAlvo(hospital_id=HOSPITAL, sexo="masculino", faixa_etaria_cod="18_25",
                           cid10_principal="F90.0")
         self.assertEqual(subs[1], [{"criterio": "comorbidades clínicas",
-                                    "valor_informado": "nenhuma", "valor_usado": "não filtradas"}])
+                                    "valor_informado": "sem comorbidades", "valor_usado": "com ou sem comorbidades"}])
         cid = subs[5][4]
         self.assertEqual(cid["codigos_grupo"], ["F90.0"])
         self.assertIs(cid["grupo_amplia"], False)

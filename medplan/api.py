@@ -188,14 +188,19 @@ def _substituicoes(conn: sqlite3.Connection, alvo: PerfilAlvo, nivel: Nivel) -> 
     clinicas = tuple(c for c in alvo.comorbidades if c not in psiq)
     itens = []
 
+    def comorbidades(informadas: tuple[str, ...]) -> tuple[str, str]:
+        # Sem comorbidade informada, o perfil completo exige pacientes SEM comorbidade;
+        # ao afrouxar, entram pacientes com comorbidade. A tela precisa dizer isso.
+        if informadas:
+            return ", ".join(informadas), "qualquer comorbidade"
+        return "sem comorbidades", "com ou sem comorbidades"
+
     if nivel.relaxa(matching.COMORBIDADES_CLINICAS):
-        itens.append({"criterio": "comorbidades clínicas",
-                      "valor_informado": ", ".join(clinicas) or "nenhuma",
-                      "valor_usado": "não filtradas"})
+        informado, usado = comorbidades(clinicas)
+        itens.append({"criterio": "comorbidades clínicas", "valor_informado": informado, "valor_usado": usado})
     if nivel.relaxa(matching.COMORBIDADES_PSIQUIATRICAS):
-        itens.append({"criterio": "comorbidades psiquiátricas",
-                      "valor_informado": ", ".join(psiq) or "nenhuma",
-                      "valor_usado": "não filtradas"})
+        informado, usado = comorbidades(psiq)
+        itens.append({"criterio": "comorbidades psiquiátricas", "valor_informado": informado, "valor_usado": usado})
     if alvo.faixa_imc_cod and nivel.relaxa(matching.FAIXA_IMC_EXATA):
         informado, faixas = _faixa_ampliada(conn, "faixa_imc", alvo.faixa_imc_cod)
         itens.append({"criterio": "faixa de IMC", "valor_informado": informado,

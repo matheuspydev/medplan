@@ -14,8 +14,8 @@ describe('prévia da escada (espelho de matching.py / substituições da API)', 
   it('F31.3 · feminino · 26_35 · sem comorbidade = substituições do nível 5 devolvidas pela API', () => {
     // Valores copiados de POST /api/v1/analises (amostra_analise_F313.json, escada[5].substituicoes).
     expect(comoApi({ dx: 'F31.3', sexo: 'feminino', faixa: '26_35', com: [] })).toEqual([
-      { criterio: 'comorbidades clínicas', valor_informado: 'nenhuma', valor_usado: 'não filtradas' },
-      { criterio: 'comorbidades psiquiátricas', valor_informado: 'nenhuma', valor_usado: 'não filtradas' },
+      { criterio: 'comorbidades clínicas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
+      { criterio: 'comorbidades psiquiátricas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
       { criterio: 'faixa etária', valor_informado: '26 a 35 anos', valor_usado: '18 a 50 anos' },
       { criterio: 'sexo', valor_informado: 'feminino', valor_usado: 'todos' },
       {
@@ -31,8 +31,8 @@ describe('prévia da escada (espelho de matching.py / substituições da API)', 
   it('F90.0 · masculino · 18_25: grupo de um só código não amplia; faixa 12 a 35 anos', () => {
     // Valores copiados de amostra_analise_F900.json (escada[5].substituicoes).
     expect(comoApi({ dx: 'F90.0', sexo: 'masculino', faixa: '18_25', com: [] })).toEqual([
-      { criterio: 'comorbidades clínicas', valor_informado: 'nenhuma', valor_usado: 'não filtradas' },
-      { criterio: 'comorbidades psiquiátricas', valor_informado: 'nenhuma', valor_usado: 'não filtradas' },
+      { criterio: 'comorbidades clínicas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
+      { criterio: 'comorbidades psiquiátricas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
       { criterio: 'faixa etária', valor_informado: '18 a 25 anos', valor_usado: '12 a 35 anos' },
       { criterio: 'sexo', valor_informado: 'masculino', valor_usado: 'todos' },
       { criterio: 'código CID-10', valor_informado: 'F90.0', valor_usado: 'grupo F90-F98', codigos_grupo: ['F90.0'], grupo_amplia: false },
@@ -41,8 +41,8 @@ describe('prévia da escada (espelho de matching.py / substituições da API)', 
 
   it('comorbidades: capítulo F é psiquiátrica, o resto é clínica, na ordem informada', () => {
     const itens = previaRelaxamento({ dx: 'F31.3', sexo: 'feminino', faixa: '26_35', com: ['I10', 'F41.1', 'E11.9'] }, catalogo);
-    expect(itens[0]).toMatchObject({ nivel: 1, valor_informado: 'I10, E11.9', valor_usado: 'não filtradas' });
-    expect(itens[1]).toMatchObject({ nivel: 2, valor_informado: 'F41.1', valor_usado: 'não filtradas' });
+    expect(itens[0]).toMatchObject({ nivel: 1, valor_informado: 'I10, E11.9', valor_usado: 'qualquer comorbidade' });
+    expect(itens[1]).toMatchObject({ nivel: 2, valor_informado: 'F41.1', valor_usado: 'qualquer comorbidade' });
   });
 
   it('faixas nas pontas do catálogo (ordem ± 1, como a subconsulta do matching)', () => {
@@ -60,14 +60,20 @@ describe('prévia da escada (espelho de matching.py / substituições da API)', 
   });
 
   it('a ordem dos critérios e as regras batem com matching.py', () => {
-    const nivel5 = matchingSrc.match(/Nivel\(5,[\s\S]*?\(([\s\S]*?)\)\),/);
-    expect(nivel5).not.toBeNull();
-    const criterios = [...nivel5![1].matchAll(/"([^"]*)"/g)].map((m) => m[1]);
+    // critérios na ordem em que _escada os acrescenta; o de IMC só existe com a faixa informada
+    const constantes = Object.fromEntries([...matchingSrc.matchAll(/^([A-Z_]+) = "([^"]+)"$/gm)].map((m) => [m[1], m[2]]));
+    const escada = matchingSrc.match(/def _escada[\s\S]*?return tuple\(niveis\)/);
+    expect(escada).not.toBeNull();
+    const criterios = [...escada![0].matchAll(/\(([A-Z_]+),\)\)/g)]
+      .map((m) => m[1])
+      .filter((nome) => nome !== 'FAIXA_IMC_EXATA')
+      .map((nome) => constantes[nome]);
     expect(criterios).toHaveLength(CRITERIOS_ESCADA.length);
     criterios.forEach((c, i) => expect(c.startsWith(CRITERIOS_ESCADA[i])).toBe(true));
     // faixa adjacente por ordem, grupo CID pelo catálogo, psiquiátrica = capítulo F
-    expect(matchingSrc).toContain('SELECT ordem - 1 FROM faixa_etaria');
-    expect(matchingSrc).toContain('SELECT ordem + 1 FROM faixa_etaria');
+    expect(matchingSrc).toContain('SELECT ordem - 1 FROM {tabela}');
+    expect(matchingSrc).toContain('SELECT ordem + 1 FROM {tabela}');
+    expect(matchingSrc).toContain('_faixa_adjacente("faixa_etaria")');
     expect(matchingSrc).toContain('SELECT codigo FROM cid10 WHERE grupo');
     expect(matchingSrc).toContain('c.upper().startswith("F")');
   });
