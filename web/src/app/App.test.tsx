@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Referencias } from '../api/types';
@@ -56,35 +56,87 @@ describe('shell', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     document.documentElement.removeAttribute('data-sem-faixa-sintetica');
+    document.documentElement.removeAttribute('data-theme');
+    window.localStorage.clear();
   });
 
-  it('mostra a faixa sintética, o hospital e o título com [SINTÉTICO]', async () => {
+  /** Espera o catálogo de /referencias chegar (a faixa e o título dependem dele). */
+  async function esperarCatalogo() {
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+    await act(async () => {});
+  }
+
+  it('mostra a faixa sintética e o título com [SINTÉTICO]', async () => {
     montar();
-    expect(await screen.findByText('Hospital de Demonstração (dados sintéticos)')).toBeTruthy();
+    await esperarCatalogo();
     expect(screen.getByRole('note', { name: 'Dados sintéticos' })).toBeTruthy();
-    expect(document.title).toBe('[SINTÉTICO] MedPlan · Consulta');
+    expect(document.title).toBe('[SINTÉTICO] MedPlan · Consulta por perfil');
   });
 
   it('a faixa só some quando o servidor declara dados reais', async () => {
     montar(false);
-    await screen.findByText('Hospital de Demonstração (dados sintéticos)');
-    expect(screen.queryByRole('note', { name: 'Dados sintéticos' })).toBeNull();
-    expect(document.title).toBe('MedPlan · Consulta');
+    await waitFor(() => expect(screen.queryByRole('note', { name: 'Dados sintéticos' })).toBeNull());
+    expect(document.title).toBe('MedPlan · Consulta por perfil');
   });
 
-  it('navega entre abas sem recarregar', async () => {
+  it('navega pela sidebar sem recarregar e marca o item atual', async () => {
     montar();
-    await screen.findByText('Hospital de Demonstração (dados sintéticos)');
-    fireEvent.click(screen.getByRole('link', { name: 'Registro de caso' }));
-    expect(window.location.pathname).toBe('/registro');
-    expect(document.title).toBe('[SINTÉTICO] MedPlan · Registro de caso');
-    expect(screen.getByRole('link', { name: 'Registro de caso' }).getAttribute('aria-current')).toBe('page');
+    await esperarCatalogo();
+    fireEvent.click(screen.getByRole('link', { name: 'Pacientes' }));
+    expect(window.location.pathname).toBe('/pacientes');
+    expect(document.title).toBe('[SINTÉTICO] MedPlan · Pacientes');
+    expect(screen.getByRole('link', { name: 'Pacientes' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('link', { name: 'Consulta por perfil' }).getAttribute('aria-current')).toBeNull();
+  });
+
+  it('o registro de atendimento acende o item Pacientes', async () => {
+    window.history.replaceState(null, '', '/registro');
+    montar();
+    await esperarCatalogo();
+    expect(screen.getByRole('link', { name: 'Pacientes' }).getAttribute('aria-current')).toBe('page');
+  });
+
+  it('a sidebar recolhe para só ícones e volta', async () => {
+    montar();
+    await esperarCatalogo();
+    const botao = screen.getByRole('button', { name: 'Recolher menu' });
+    expect(botao.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(botao);
+    expect(screen.getByRole('button', { name: 'Expandir menu' }).getAttribute('aria-expanded')).toBe('false');
+    // os itens continuam nomeados para leitor de tela
+    expect(screen.getByRole('link', { name: 'Medicamentos' })).toBeTruthy();
+  });
+
+  it('o seletor de tema grava a escolha no <html>', async () => {
+    montar();
+    await esperarCatalogo();
+    fireEvent.click(screen.getByRole('radio', { name: 'Escuro' }));
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    fireEvent.click(screen.getByRole('radio', { name: 'Sistema' }));
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+  });
+
+  it('Ctrl+K abre a busca; Enter abre o resultado ativo; Esc fecha', async () => {
+    montar();
+    await esperarCatalogo();
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    const busca = screen.getByRole('combobox', { name: 'Buscar' });
+    expect(document.activeElement).toBe(busca);
+    fireEvent.change(busca, { target: { value: 'reacoes' } });
+    expect(screen.getByRole('option', { name: /Reações adversas/ }).getAttribute('aria-selected')).toBe('true');
+    fireEvent.keyDown(busca, { key: 'Enter' });
+    expect(window.location.pathname).toBe('/reacoes');
+    expect(screen.queryByRole('dialog', { name: 'Busca rápida' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Buscar medicamento/ }));
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Buscar' }), { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Busca rápida' })).toBeNull();
   });
 
   it('Alt+M abre a Metodologia em drawer modal; Esc fecha e devolve o foco', async () => {
     montar();
-    await screen.findByText('Hospital de Demonstração (dados sintéticos)');
-    const gatilho = screen.getByRole('button', { name: /Tema/ });
+    await esperarCatalogo();
+    const gatilho = screen.getByRole('button', { name: 'Recolher menu' });
     gatilho.focus();
     fireEvent.keyDown(window, { key: 'm', code: 'KeyM', altKey: true });
     const dialogo = await screen.findByRole('dialog', { name: 'Metodologia' });

@@ -1,26 +1,45 @@
 /**
- * Roteador mínimo (History API, sem biblioteca): /consulta (padrão), /registro, /metodologia.
+ * Roteador mínimo (History API, sem biblioteca).
  *
  * - `useRota()` devolve a rota atual; `navegar('/registro')` troca de tela.
  * - O FRAGMENTO (#...) nunca é tocado aqui: na Consulta ele guarda o estado da consulta.
  *   Ao navegar para outra rota, o fragmento é descartado (cada tela tem o seu).
- * - Qualquer caminho desconhecido (inclusive "/") vira /consulta via replaceState.
+ * - Qualquer caminho desconhecido (inclusive "/") vira a rota inicial via replaceState.
  */
 import { useSyncExternalStore, type AnchorHTMLAttributes, type MouseEvent } from 'react';
 
-export type Rota = '/consulta' | '/registro' | '/metodologia';
+export type Rota =
+  | '/visao-geral'
+  | '/consulta'
+  | '/pacientes'
+  | '/registro'
+  | '/medicamentos'
+  | '/medicamentos/comparar'
+  | '/reacoes'
+  | '/qualidade'
+  | '/metodologia';
 
+/** `nome` vai no título da aba do navegador. */
 export const ROTAS: { caminho: Rota; nome: string }[] = [
-  { caminho: '/consulta', nome: 'Consulta' },
-  { caminho: '/registro', nome: 'Registro de caso' },
+  { caminho: '/visao-geral', nome: 'Visão geral' },
+  { caminho: '/consulta', nome: 'Consulta por perfil' },
+  { caminho: '/pacientes', nome: 'Pacientes' },
+  { caminho: '/registro', nome: 'Registrar atendimento' },
+  { caminho: '/medicamentos', nome: 'Medicamentos' },
+  { caminho: '/medicamentos/comparar', nome: 'Comparar medicamentos' },
+  { caminho: '/reacoes', nome: 'Reações adversas' },
+  { caminho: '/qualidade', nome: 'Qualidade dos dados' },
   { caminho: '/metodologia', nome: 'Metodologia' },
 ];
+
+// A Consulta continua sendo a tela inicial enquanto a Visão geral não consome a API.
+const ROTA_INICIAL: Rota = '/consulta';
 
 const EVENTO = 'medplan:navegacao';
 
 function resolver(caminho: string): Rota {
   const limpo = caminho.replace(/\/+$/, '');
-  return (ROTAS.find((r) => r.caminho === limpo)?.caminho ?? '/consulta') as Rota;
+  return ROTAS.find((r) => r.caminho === limpo)?.caminho ?? ROTA_INICIAL;
 }
 
 /** Corrige a URL inicial para uma rota conhecida, preservando o fragmento. */

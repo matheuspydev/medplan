@@ -88,7 +88,8 @@ Registro de caso:
 ```
 web/src/
   api/          types.ts (espelho do contrato), client.ts, referencias.tsx (catálogos, 1 carga)
-  app/          App, rotas (history API, sem biblioteca), tema (Sistema/Claro/Escuro)
+  app/          App (shell), Sidebar, BuscaRapida (Cmd/Ctrl+K), rotas (history API, sem
+                biblioteca), tema e SeletorTema (Sistema/Claro/Escuro)
   components/   Proporcao, FaixaIC, AvisoNaoPrescreve, AvisoViesIndicacao, FaixaSintetico,
                 PainelMedicao, Hachura, Combobox, MultiCombobox, SegmentedControl, Stepper,
                 NumberField, DateField, Field, Button, Drawer, LoadingLine, PainelFalha…
@@ -109,32 +110,36 @@ biblioteca de gráficos — os gráficos são SVG à mão.
 
 ## 5. Design system
 
-Linguagem visual inspirada nas interfaces da Apple: pouco texto, tipografia grande e limpa,
-muito espaço, cartões arredondados e um único acento de cor. A primeira versão ("Retícula",
-grafite e magenta, densa em rótulos) foi substituída a pedido do usuário por ser pesada de ler.
+Segue o canvas "MedPlan — Redesign" (https://claude.ai/artifact/2tsS2P1cHkGGe96Q74PF2Q): base
+neutra de cinzas levemente frios, cartões arredondados, sombras quase imperceptíveis e um único
+acento teal, que é cor de ação e marca, nunca de "bom resultado". Os valores estão em
+`web/src/styles/tokens.css`, com tema claro e escuro.
 
-**Superfícies.** Canvas cinza-claro (`#F5F5F7`; `#000000` no escuro) com cartões brancos
-(`#FFFFFF`; `#1C1C1E`) de raio 18px e sombra quase imperceptível. Navegação e cabeçalho da
-leitura em vidro fosco (`backdrop-filter`). Botões em pílula; controles segmentados no estilo
-iOS, com a opção escolhida em "pílula" branca.
+**Shell.** Faixa fina fixa "Dados sintéticos — protótipo de validação"; sidebar à esquerda com
+ícones e nomes (recolhível para só ícones), item "Equipe" separado por um divisor e, no rodapé,
+Metodologia (Alt+M) e o seletor de tema Sistema/Claro/Escuro; barra superior com a busca rápida
+(Cmd/Ctrl+K); rodapé com as letras miúdas e o link para a Metodologia.
+
+**Superfícies.** Fundo `#F6F7F9` (`#0E1116` no escuro) com cartões `#FFFFFF` (`#151A21`) de raio
+16px; controles com raio 10px.
 
 **Cor.**
 
 | Papel | Claro | Escuro | Onde |
 |---|---|---|---|
-| Texto | `#1D1D1F` / `#6E6E73` | `#F5F5F7` / `#98989D` | primário / secundário |
-| Ação e acento | `#0071E3` | `#0A84FF` | botões, links, limite inferior que ordena, nível onde a escada parou |
-| Desvio (âmbar) | `#8A5300` sobre `#FFF6E5` | `#FFB340` | critérios ignorados, leitura desatualizada, alertas de consistência |
-| Limitação | `#3C4A5C` sobre `#EEF2F7` | `#C7D2E0` | viés de indicação, privacidade |
-| Erro | `#D70015` | `#FF6961` | só validação e falha de API |
+| Texto | `#121720` / `#3F4856` / `#5C6573` | `#E8ECF1` / `#B4BCC8` / `#919BA9` | primário / secundário / n e IC |
+| Ação e acento | `#0F766E` | `#14B8A6` | botões, links, item ativo, limite inferior que ordena, nível onde a escada parou |
+| Desvio (âmbar) | `#7A4E00` sobre `#FCF5E6` | `#F2C46D` sobre `#251E12` | critérios ignorados, leitura desatualizada, alertas de consistência |
+| Limitação | `#34445A` sobre `#EEF2F7` | `#B3C3D8` sobre `#18202C` | viés de indicação, privacidade |
+| Erro | `#A8261B` sobre `#FCEDEC` | `#FF9B91` sobre `#2A1716` | só validação e falha de API |
 
 Não existe verde de "sucesso" e nenhuma cor codifica "bom" ou "ruim". O primeiro lugar da lista
 não ganha destaque; a lista mostra uma ordem, não um ranking.
 
-**Tipografia.** Fonte do sistema da Apple (SF Pro) em aparelhos Apple; Inter variável (OFL,
-auto-hospedada) no resto. Números sempre tabulares. Títulos grandes com espaçamento negativo;
-rótulos em frase normal, sem caixa-alta. O percentual pode ser maior que o resto da leitura, mas
-sai sempre na mesma linha e no mesmo componente que o n e o IC.
+**Tipografia.** Inter variável (OFL, auto-hospedada) em todos os aparelhos. Números sempre
+tabulares. Títulos grandes com espaçamento negativo; rótulos em frase normal, sem caixa-alta. O
+percentual pode ser maior que o resto da leitura, mas sai sempre na mesma linha e no mesmo
+componente que o n e o IC.
 
 **Mensagens obrigatórias, em forma curta** — nenhuma some, nenhuma fecha:
 
