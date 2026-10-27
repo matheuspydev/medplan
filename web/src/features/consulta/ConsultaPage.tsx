@@ -33,11 +33,14 @@ import {
   restaurarFormulario,
   validarFormulario,
   type Formulario,
+  preencherComFiltros,
 } from './formulario';
 import { PerfilPaciente } from './PerfilPaciente';
 import { PreviaRelaxamento } from './PreviaRelaxamento';
 import { DadosInsuficientes, SemDadosSuficientes } from './SemDados';
+import { FrequenciaPrescricao } from './FrequenciaPrescricao';
 import { TabelaPermanencia } from './TabelaPermanencia';
+import { useFiltros } from '../../app/filtros';
 import './consulta.css';
 
 export default function ConsultaPage() {
@@ -81,7 +84,12 @@ function valido(f: Formulario, catalogo: Catalogo): boolean {
 function Consulta({ catalogo }: { catalogo: Catalogo }) {
   const { limites } = catalogo.referencias;
 
-  const [form, setForm] = useState<Formulario>(() => restaurarFormulario(window.location.hash, catalogo));
+  const { filtros } = useFiltros();
+  // Sem estado no fragmento, os filtros globais pré-preenchem o perfil (a análise continua sendo pedida pela pessoa).
+  const [form, setForm] = useState<Formulario>(() => {
+    const restaurado = restaurarFormulario(window.location.hash, catalogo);
+    return window.location.hash ? restaurado : preencherComFiltros(restaurado, filtros, catalogo);
+  });
   const [tentou, setTentou] = useState(false);
   const [leitura, setLeitura] = useState<Leitura | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -281,6 +289,8 @@ function Consulta({ catalogo }: { catalogo: Catalogo }) {
               inert={esmaecido || undefined}
             >
               <CriteriosIgnorados resposta={resposta} refTitulo={refCriterios} />
+
+              <FrequenciaPrescricao frequencia={resposta.frequencia_prescricao} nMinimo={resposta.n_minimo} />
 
               {resposta.dados_insuficientes ? (
                 <DadosInsuficientes

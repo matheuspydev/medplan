@@ -214,6 +214,76 @@
   white-space: nowrap;
 }
 
+/* Filtros globais: fichas removíveis + painel com os seis filtros (abre abaixo da barra). */
+.barra-topo__fichas {
+  display: flex;
+  flex: 1 1 320px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ficha-filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 2px 3px 2px 12px;
+  border: 1px solid var(--color-rule-control);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: var(--text-table-size);
+}
+.ficha-filtro__rotulo {
+  color: var(--color-text-tertiary);
+}
+.ficha-filtro__remover {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-tertiary);
+}
+.ficha-filtro__remover:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+.barra-topo__limpar {
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  color: var(--color-action-text);
+  font-size: var(--text-table-size);
+  font-weight: var(--font-weight-semibold);
+}
+.barra-topo__aviso {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-table-size);
+}
+.painel-filtros {
+  display: grid;
+  flex: 1 0 100%;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  align-items: end;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-rule-hairline);
+}
+.painel-filtros__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption-size);
+}
+.painel-filtros__fechar {
+  justify-self: start;
+}
+
 .app-conteudo {
   flex: 1;
   min-width: 0;

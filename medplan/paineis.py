@@ -172,7 +172,7 @@ def visao_geral(base: Base, filtros: Filtros, horizonte_dias: int, n_minimo: int
         "medicamentos": [
             {"medicamento_id": m, "principio_ativo": base.medicamentos[m]["principio_ativo"],
              "codigo_atc": base.medicamentos[m]["codigo_atc"], "n_tratamentos": n}
-            for m, n in sorted(por_medicamento.items(), key=lambda i: (-i[1], i[0]))[:8]
+            for m, n in sorted(por_medicamento.items(), key=lambda i: (-i[1], i[0]))
         ],
         "desfecho": {
             "n_tratamentos": len(trats),

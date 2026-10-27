@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Referencias } from '../api/types';
@@ -34,9 +34,14 @@ const referencias = (sinteticos: boolean): Referencias => ({
 });
 
 function montar(sinteticos = true) {
+  // Só /referencias responde; os painéis ficam carregando (o shell não depende deles).
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => new Response(JSON.stringify(referencias(sinteticos)), { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    vi.fn((url: string) =>
+      url.endsWith('/referencias')
+        ? Promise.resolve(new Response(JSON.stringify(referencias(sinteticos)), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+        : new Promise<Response>(() => {}),
+    ),
   );
   return render(
     <TemaProvider>
@@ -93,7 +98,23 @@ describe('shell', () => {
     window.history.replaceState(null, '', '/registro');
     montar();
     await esperarCatalogo();
-    expect(screen.getByRole('link', { name: 'Pacientes' }).getAttribute('aria-current')).toBe('page');
+    const nav = screen.getByRole('navigation', { name: 'Principal' });
+    expect(within(nav).getByRole('link', { name: 'Pacientes' }).getAttribute('aria-current')).toBe('page');
+  });
+
+  it('filtros globais só nas telas em que valem; aplicar vira ficha removível', async () => {
+    window.history.replaceState(null, '', '/visao-geral');
+    montar();
+    await esperarCatalogo();
+    expect(screen.getByText('Sem filtros: base inteira')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tabagista' }), { target: { value: 'true' } });
+    expect(screen.queryByText('Sem filtros: base inteira')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Remover filtro Tabagista' }));
+    expect(screen.getByText('Sem filtros: base inteira')).toBeTruthy();
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('link', { name: 'Pacientes' }));
+    expect(screen.getByText('Os filtros globais não se aplicam a esta tela.')).toBeTruthy();
   });
 
   it('a sidebar recolhe para só ícones e volta', async () => {

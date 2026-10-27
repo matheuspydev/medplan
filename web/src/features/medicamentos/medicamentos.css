@@ -1,0 +1,212 @@
+.cabecalho-pagina__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.grade-medicamentos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+  gap: 10px;
+}
+.cartao-medicamento {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px var(--space-4);
+  border: 1px solid var(--color-rule-hairline);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text-primary);
+  text-align: left;
+}
+.cartao-medicamento:hover {
+  border-color: var(--color-rule-control);
+}
+.cartao-medicamento[aria-pressed='true'] {
+  border-color: var(--color-action);
+  box-shadow: inset 0 0 0 1px var(--color-action);
+}
+.cartao-medicamento__nome {
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+}
+.cartao-medicamento__classe {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-caption-size);
+}
+.cartao-medicamento__rodape {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption-size);
+}
+
+.ficha-medicamento__leitura {
+  margin-top: var(--space-2);
+}
+.ficha-medicamento__contas {
+  display: flex;
+  gap: var(--space-6);
+  margin-top: var(--space-2);
+}
+.ficha-medicamento__contas > span {
+  display: flex;
+  flex-direction: column;
+}
+.ficha-medicamento__contas strong {
+  font-size: 1.25rem;
+  font-weight: 650;
+  font-variant-numeric: var(--numeric);
+}
+.ficha-medicamento__graficos {
+  margin-top: var(--space-6);
+}
+.ficha-medicamento__secao {
+  margin-top: var(--space-6);
+}
+.ficha-medicamento__titulo {
+  font-size: 1rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ---- comparar ------------------------------------------------------------------- */
+.comparar__seletores {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 14px var(--space-4);
+}
+.comparar__rotulo {
+  font-size: var(--text-table-size);
+  font-weight: var(--font-weight-semibold);
+}
+.comparar__nota {
+  margin-left: auto;
+}
+.seletor-medicamento {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.seletor-medicamento__botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 4px 10px 4px 12px;
+  border: 1px solid var(--color-rule-control);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  text-align: left;
+}
+.seletor-medicamento__botao:hover {
+  background: var(--color-surface-hover);
+}
+.seletor-medicamento__botao[aria-expanded='true'] {
+  border-color: var(--color-action);
+  box-shadow: inset 0 0 0 1px var(--color-action);
+}
+.seletor-medicamento__textos {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.seletor-medicamento__nome {
+  font-size: var(--text-table-size);
+  font-weight: var(--font-weight-semibold);
+}
+.seletor-medicamento__classe {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-caption-size);
+}
+.seletor-medicamento__chevron {
+  color: var(--color-text-tertiary);
+  transition: transform var(--duration-fast) var(--easing-standard);
+}
+.seletor-medicamento__botao[aria-expanded='true'] .seletor-medicamento__chevron {
+  transform: rotate(180deg);
+}
+.seletor-medicamento__remover {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-tertiary);
+}
+.seletor-medicamento__remover:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+.seletor-medicamento__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: var(--z-listbox);
+  display: flex;
+  flex-direction: column;
+  min-width: 18.75rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--color-rule-hairline);
+  border-radius: 14px;
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-overlay);
+}
+.seletor-medicamento__opcao {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 40px;
+  padding: var(--space-2) 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-primary);
+  text-align: left;
+}
+.seletor-medicamento__opcao:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+.seletor-medicamento__opcao[aria-selected='true'] {
+  background: var(--color-action-tint);
+  color: var(--color-action-text);
+  font-weight: var(--font-weight-semibold);
+}
+.seletor-medicamento__opcao:disabled {
+  color: var(--color-text-tertiary);
+  cursor: not-allowed;
+}
+.comparar__linha {
+  display: grid;
+  align-items: center;
+  gap: 0 var(--space-5);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-rule-hairline);
+  font-size: var(--text-table-size);
+}
+.comparar__linha--cabecalho {
+  padding-top: 0;
+  border-top: 0;
+}
+.comparar__legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: 6px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption-size);
+}

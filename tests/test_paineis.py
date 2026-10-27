@@ -43,8 +43,26 @@ class TestPaineis(ComBanco, InvariantesDeProporcao):
     def preparar(cls, conn):
         synth.gerar(conn, n_perfis=1500)
 
+    ROTAS = {"/visao-geral": "visao-geral", "/pacientes": "pacientes", "/reacoes/resumo": "reacoes",
+             "/reacoes/peso-por-imc": "peso-por-imc"}
+    FILTROS = {"sexo", "faixa_etaria_cod", "diagnostico", "faixa_imc_cod", "tabagista", "comorbidades"}
+
+    def post(self, painel, **corpo):
+        return self.cliente.post(f"/api/v1/paineis/{painel}", json=corpo)
+
     def get(self, rota, **params):
-        r = self.cliente.get(f"/api/v1{rota}", params=params)
+        """Atalho dos testes: monta o corpo do POST, com os filtros dentro de `filtros`."""
+        if rota.startswith("/medicamentos/"):
+            painel, params = "medicamento", {**params, "medicamento_id": int(rota.split("/")[2])}
+        elif rota.startswith("/pacientes/"):
+            painel, params = "paciente", {"chave_pseudonima": rota.split("/")[2]}
+        else:
+            painel = self.ROTAS[rota]
+        if painel != "pacientes":
+            filtros = {k: params.pop(k) for k in list(params) if k in self.FILTROS}
+            if filtros:
+                params["filtros"] = filtros
+        r = self.post(painel, **params)
         self.assertEqual(r.status_code, 200, r.text)
         return r.json()
 
@@ -76,10 +94,9 @@ class TestPaineis(ComBanco, InvariantesDeProporcao):
             self.assertEqual(sum(c["n_atendimentos_classe"] for c in linha["celulas"]), linha["n_atendimentos"])
 
     def test_filtro_desconhecido_e_recusado(self):
-        r = self.cliente.get("/api/v1/visao-geral", params={"faixa_imc_cod": "nao_existe"})
-        self.assertEqual(r.status_code, 422)
-        r = self.cliente.get("/api/v1/visao-geral", params={"comorbidades": 7})
-        self.assertEqual(r.status_code, 422)
+        self.assertEqual(self.post("visao-geral", filtros={"faixa_imc_cod": "nao_existe"}).status_code, 422)
+        self.assertEqual(self.post("visao-geral", filtros={"comorbidades": 7}).status_code, 422)
+        self.assertEqual(self.post("visao-geral", filtros={"nome": "x"}).status_code, 422)
 
     # ---- pacientes ------------------------------------------------------------------
     def test_lista_de_pacientes_busca_sem_acento_e_pagina(self):
@@ -99,7 +116,7 @@ class TestPaineis(ComBanco, InvariantesDeProporcao):
         datas = [a["data"] for a in ficha["atendimentos"]]
         self.assertEqual(datas, sorted(datas, reverse=True))
         self.assertEqual(sum(t["n_atendimentos"] for t in ficha["tratamentos"]), len(ficha["atendimentos"]))
-        self.assertEqual(self.cliente.get("/api/v1/pacientes/REG-INEXISTENTE").status_code, 404)
+        self.assertEqual(self.post("paciente", chave_pseudonima="REG-INEXISTENTE").status_code, 404)
 
     # ---- medicamentos ---------------------------------------------------------------
     def test_ficha_do_medicamento(self):
@@ -119,7 +136,7 @@ class TestPaineis(ComBanco, InvariantesDeProporcao):
         self.assertEqual(sum(sum(l["n_por_sexo"]) for l in ficha["recebem"]["linhas"]), c["n_tratamentos"])
         self.assertEqual([l["linha"] for l in ficha["por_linha"]], ["1", "2", "3+"])
         self.verificar_proporcoes(ficha, 20)
-        self.assertEqual(self.cliente.get("/api/v1/medicamentos/99999/ficha").status_code, 404)
+        self.assertEqual(self.post("medicamento", medicamento_id=99999).status_code, 404)
 
     def test_curva_some_abaixo_do_n_minimo(self):
         med = self.get("/visao-geral")["medicamentos"][-1]

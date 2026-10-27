@@ -16,7 +16,7 @@ describe('estado da consulta no fragmento', () => {
   });
 
   it('ida e volta', () => {
-    const estado = { dx: 'F31.3', sexo: 'nao_informado' as const, faixa: '66_mais', com: ['F41.1', 'I10'], h: 90, nmin: 35 };
+    const estado = { dx: 'F31.3', sexo: 'nao_informado' as const, faixa: '66_mais', imc: 'sobrepeso', com: ['F41.1', 'I10'], h: 90, nmin: 35 };
     expect(decodificarFragmento(codificarFragmento(estado))).toEqual(estado);
   });
 
@@ -25,17 +25,18 @@ describe('estado da consulta no fragmento', () => {
       dx: 'F31.3',
       sexo: null,
       faixa: null,
+      imc: null,
       com: ['F41.1'],
       h: null,
       nmin: null,
     });
-    expect(decodificarFragmento('')).toEqual({ dx: null, sexo: null, faixa: null, com: [], h: null, nmin: null });
+    expect(decodificarFragmento('')).toEqual({ dx: null, sexo: null, faixa: null, imc: null, com: [], h: null, nmin: null });
   });
 
   it('restaura contra o catálogo: descarta código desconhecido, comorbidade igual ao principal e n mínimo fora da faixa', () => {
     const catalogo = catalogoTeste();
     const f = restaurarFormulario('#dx=F31.3&sexo=feminino&faixa=99_99&com=F31.3,Z99.9,I10&nmin=500', catalogo);
-    expect(f).toEqual({ dx: 'F31.3', sexo: 'feminino', faixa: null, com: ['I10'], h: 84, nmin: 20 });
+    expect(f).toEqual({ dx: 'F31.3', sexo: 'feminino', faixa: null, imc: null, com: ['I10'], h: 84, nmin: 20 });
     expect(Object.keys(validarFormulario(f, catalogo.referencias.limites))).toEqual(['faixa']);
   });
 

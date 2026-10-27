@@ -1,0 +1,38 @@
+.curva-permanencia {
+  margin: 0;
+}
+.curva-permanencia svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
+.curva-permanencia__grade line {
+  stroke: var(--color-data-grid);
+}
+.curva-permanencia__rotulos,
+.curva-permanencia__rotulos text {
+  fill: var(--color-text-tertiary);
+}
+.curva-permanencia__horizonte {
+  stroke: var(--color-text-tertiary);
+  stroke-dasharray: 3 4;
+}
+.curva-permanencia__banda {
+  fill: var(--color-data-ci);
+  opacity: 0.45;
+}
+.curva-permanencia__linha {
+  fill: none;
+  stroke: var(--color-data-point);
+  stroke-width: 2;
+}
+.curva-permanencia__censura {
+  stroke: var(--color-data-point);
+  stroke-width: 1.5;
+}
+.amostra-traco line {
+  stroke: var(--color-data-point);
+  stroke-width: 2;
+}

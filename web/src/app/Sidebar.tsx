@@ -19,7 +19,7 @@ interface ItemNav {
 const PRINCIPAIS: ItemNav[] = [
   { para: '/visao-geral', rotulo: 'Visão geral', Icone: LayoutDashboard },
   { para: '/consulta', rotulo: 'Consulta por perfil', Icone: UserSearch },
-  { para: '/pacientes', rotulo: 'Pacientes', Icone: Users, inclui: ['/registro'] },
+  { para: '/pacientes', rotulo: 'Pacientes', Icone: Users, inclui: ['/registro', '/paciente'] },
   { para: '/medicamentos', rotulo: 'Medicamentos', Icone: Layers, inclui: ['/medicamentos/comparar'] },
   { para: '/reacoes', rotulo: 'Reações adversas', Icone: Activity },
 ];

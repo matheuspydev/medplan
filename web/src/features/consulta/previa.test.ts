@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import engineSrc from '../../../../medplan/engine.py?raw';
 import matchingSrc from '../../../../medplan/matching.py?raw';
 import { FRASE_COORTE_DIFERENTE } from './CriteriosIgnorados';
-import { CRITERIOS_ESCADA, faixaAmpliada, previaRelaxamento } from './previa';
+import { CRITERIOS_ESCADA, faixaAmpliada, imcAmpliado, previaRelaxamento } from './previa';
 import { catalogoTeste } from './teste-fixtures';
 
 const catalogo = catalogoTeste();
@@ -13,7 +13,7 @@ const comoApi = (perfil: Parameters<typeof previaRelaxamento>[0]) => previaRelax
 describe('prévia da escada (espelho de matching.py / substituições da API)', () => {
   it('F31.3 · feminino · 26_35 · sem comorbidade = substituições do nível 5 devolvidas pela API', () => {
     // Valores copiados de POST /api/v1/analises (amostra_analise_F313.json, escada[5].substituicoes).
-    expect(comoApi({ dx: 'F31.3', sexo: 'feminino', faixa: '26_35', com: [] })).toEqual([
+    expect(comoApi({ dx: 'F31.3', sexo: 'feminino', faixa: '26_35', imc: null, com: [] })).toEqual([
       { criterio: 'comorbidades clínicas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
       { criterio: 'comorbidades psiquiátricas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
       { criterio: 'faixa etária', valor_informado: '26 a 35 anos', valor_usado: '18 a 50 anos' },
@@ -30,7 +30,7 @@ describe('prévia da escada (espelho de matching.py / substituições da API)', 
 
   it('F90.0 · masculino · 18_25: grupo de um só código não amplia; faixa 12 a 35 anos', () => {
     // Valores copiados de amostra_analise_F900.json (escada[5].substituicoes).
-    expect(comoApi({ dx: 'F90.0', sexo: 'masculino', faixa: '18_25', com: [] })).toEqual([
+    expect(comoApi({ dx: 'F90.0', sexo: 'masculino', faixa: '18_25', imc: null, com: [] })).toEqual([
       { criterio: 'comorbidades clínicas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
       { criterio: 'comorbidades psiquiátricas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
       { criterio: 'faixa etária', valor_informado: '18 a 25 anos', valor_usado: '12 a 35 anos' },
@@ -40,9 +40,23 @@ describe('prévia da escada (espelho de matching.py / substituições da API)', 
   });
 
   it('comorbidades: capítulo F é psiquiátrica, o resto é clínica, na ordem informada', () => {
-    const itens = previaRelaxamento({ dx: 'F31.3', sexo: 'feminino', faixa: '26_35', com: ['I10', 'F41.1', 'E11.9'] }, catalogo);
+    const itens = previaRelaxamento({ dx: 'F31.3', sexo: 'feminino', faixa: '26_35', imc: null, com: ['I10', 'F41.1', 'E11.9'] }, catalogo);
     expect(itens[0]).toMatchObject({ nivel: 1, valor_informado: 'I10, E11.9', valor_usado: 'qualquer comorbidade' });
     expect(itens[1]).toMatchObject({ nivel: 2, valor_informado: 'F41.1', valor_usado: 'qualquer comorbidade' });
+  });
+
+  it('com faixa de IMC informada, um degrau de IMC entra antes da faixa etária (como em matching.NIVEIS_COM_IMC)', () => {
+    const itens = previaRelaxamento({ dx: 'F31.3', sexo: 'feminino', faixa: '26_35', imc: 'sobrepeso', com: [] }, catalogo);
+    expect(itens.map((i) => [i.nivel, i.criterio])).toEqual([
+      [1, 'comorbidades clínicas'],
+      [2, 'comorbidades psiquiátricas'],
+      [3, 'faixa de IMC'],
+      [4, 'faixa etária'],
+      [5, 'sexo'],
+      [6, 'código CID-10'],
+    ]);
+    expect(itens[2]).toMatchObject({ valor_informado: 'Sobrepeso (25,0 a 29,9)', valor_usado: 'Eutrófico (18,5 a 24,9) a Obesidade grau I (30 a 34,9)' });
+    expect(imcAmpliado('baixo_peso', catalogo)).toBe('Baixo peso (< 18,5) a Eutrófico (18,5 a 24,9)');
   });
 
   it('faixas nas pontas do catálogo (ordem ± 1, como a subconsulta do matching)', () => {
@@ -52,7 +66,7 @@ describe('prévia da escada (espelho de matching.py / substituições da API)', 
   });
 
   it('campos vazios viram null (a tela mostra "—")', () => {
-    const itens = previaRelaxamento({ dx: null, sexo: null, faixa: null, com: [] }, catalogo);
+    const itens = previaRelaxamento({ dx: null, sexo: null, faixa: null, imc: null, com: [] }, catalogo);
     expect(itens.map((i) => i.nivel)).toEqual([1, 2, 3, 4, 5]);
     expect(itens[2]).toMatchObject({ valor_informado: null, valor_usado: null });
     expect(itens[3]).toMatchObject({ valor_informado: null });

@@ -64,6 +64,13 @@
   text-underline-offset: 3px;
 }
 
+.botao--pequeno.botao--primario,
+.botao--pequeno.botao--secundario {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: var(--text-table-size);
+}
+
 .botao:disabled {
   opacity: 0.45;
 }

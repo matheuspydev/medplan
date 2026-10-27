@@ -1,0 +1,34 @@
+.barras {
+  list-style: none;
+}
+.barras__linha {
+  display: grid;
+  grid-template-columns: minmax(9rem, 15rem) minmax(0, 1fr) 3.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 5px 0;
+  font-size: var(--text-table-size);
+}
+.barras__rotulo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.barras__trilho {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--color-surface-sunken);
+}
+.barras__barra {
+  display: block;
+  width: calc(var(--fracao) * 100%);
+  height: 100%;
+  border-radius: 5px;
+  background: var(--color-data-1);
+}
+.barras__valor {
+  color: var(--color-text-secondary);
+  text-align: right;
+}

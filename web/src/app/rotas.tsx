@@ -2,7 +2,8 @@
  * Roteador mínimo (History API, sem biblioteca).
  *
  * - `useRota()` devolve a rota atual; `navegar('/registro')` troca de tela.
- * - O FRAGMENTO (#...) nunca é tocado aqui: na Consulta ele guarda o estado da consulta.
+ * - O FRAGMENTO (#...) nunca é tocado aqui: na Consulta ele guarda o estado da consulta; na
+ *   ficha do paciente e no registro, a chave (#chave=...), que assim não chega ao servidor.
  *   Ao navegar para outra rota, o fragmento é descartado (cada tela tem o seu).
  * - Qualquer caminho desconhecido (inclusive "/") vira a rota inicial via replaceState.
  */
@@ -12,6 +13,7 @@ export type Rota =
   | '/visao-geral'
   | '/consulta'
   | '/pacientes'
+  | '/paciente'
   | '/registro'
   | '/medicamentos'
   | '/medicamentos/comparar'
@@ -24,6 +26,7 @@ export const ROTAS: { caminho: Rota; nome: string }[] = [
   { caminho: '/visao-geral', nome: 'Visão geral' },
   { caminho: '/consulta', nome: 'Consulta por perfil' },
   { caminho: '/pacientes', nome: 'Pacientes' },
+  { caminho: '/paciente', nome: 'Ficha do paciente' },
   { caminho: '/registro', nome: 'Registrar atendimento' },
   { caminho: '/medicamentos', nome: 'Medicamentos' },
   { caminho: '/medicamentos/comparar', nome: 'Comparar medicamentos' },
@@ -32,8 +35,7 @@ export const ROTAS: { caminho: Rota; nome: string }[] = [
   { caminho: '/metodologia', nome: 'Metodologia' },
 ];
 
-// A Consulta continua sendo a tela inicial enquanto a Visão geral não consome a API.
-const ROTA_INICIAL: Rota = '/consulta';
+const ROTA_INICIAL: Rota = '/visao-geral';
 
 const EVENTO = 'medplan:navegacao';
 
@@ -72,12 +74,32 @@ export function useRota(): Rota {
 }
 
 /** <a> que navega sem recarregar (Ctrl/Meta/botão do meio mantêm o comportamento nativo). */
-export function LinkRota({ para, onClick, ...resto }: { para: Rota } & AnchorHTMLAttributes<HTMLAnchorElement>) {
+export function LinkRota({
+  para,
+  fragmento = '',
+  onClick,
+  ...resto
+}: { para: Rota; fragmento?: string } & AnchorHTMLAttributes<HTMLAnchorElement>) {
   function aoClicar(e: MouseEvent<HTMLAnchorElement>) {
     onClick?.(e);
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
-    navegar(para);
+    navegar(para, fragmento);
   }
-  return <a href={para} onClick={aoClicar} {...resto} />;
+  return <a href={`${para}${fragmento}`} onClick={aoClicar} {...resto} />;
+}
+
+/** Fragmento "#chave=REG-..." da ficha do paciente e do registro (a chave não vai para a URL do servidor). */
+export function fragmentoChave(chave: string): string {
+  return `#chave=${encodeURIComponent(chave)}`;
+}
+
+export function lerChaveDoFragmento(hash: string): string | null {
+  const m = /(?:^#|&)chave=([^&]+)/.exec(hash);
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return null;
+  }
 }

@@ -80,9 +80,13 @@ medplan/
   engine.py      orquestra coorte -> estatística -> ranking
   synth.py       gerador de dados sintéticos
   api.py         API HTTP (FastAPI) sobre o motor; serve web/dist
-  registro.py    validação e gravação do registro de caso
+  registro.py    validação e gravação do registro de caso (API; a tela web registra atendimentos)
+  atendimento.py registro de atendimento: o grão do Data Mart
+  datamart.py    Data Mart no protótipo: dimensões, chaves substitutas, leitura dos fatos
+  paineis.py     painéis (visão geral, pacientes, medicamentos, reações) a partir dos fatos
   rotulos.py     rótulos pt-BR dos enums do schema, para a interface
-web/             interface React + TypeScript (Vite)
+web/             interface React + TypeScript (Vite): visão geral, consulta, pacientes,
+                 registrar atendimento, medicamentos, comparar, reações, metodologia
 app.py           tela Streamlit
 ```
 

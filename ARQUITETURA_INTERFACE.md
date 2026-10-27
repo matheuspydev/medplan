@@ -12,10 +12,10 @@ validado clinicamente — isso depende da médica responsável (ver seção 9).
 
 | # | Decisão | Consequência |
 |---|---|---|
-| 1 | React + TypeScript já na fase 0 (decisão do usuário) | Contraria a seção 4 do `CLAUDE.md`, que deixava React para depois. O `app.py` Streamlit continua intacto como tela da validação clínica. **O `CLAUDE.md` ainda não foi atualizado** — decisão pendente do usuário. |
+| 1 | React + TypeScript já na fase 0 (decisão do usuário) | Registrado na seção 4 do `CLAUDE.md`. O `app.py` Streamlit continua intacto como tela da validação clínica. |
 | 2 | O motor mudou só no aprovado | A escada ganhou o degrau de faixa de IMC, que só existe quando a faixa é informada; sem IMC a consulta é idêntica à anterior (`tests/test_matching_regressao.py` congela a versão antiga e compara degrau a degrau). A API só serializa o que o motor e os painéis calculam. |
 | 3 | O backend é a autoridade dos números | Ordem, coorte, censura, IC e **arredondamento** saem do Python. O front nunca recalcula nem arredonda — então os casos-ouro validados no motor valem para o que aparece na tela. |
-| 4 | Duas telas de trabalho | **Consulta** (perfil → análise de coorte) e **Registro de caso** (perfil + tratamentos + desfecho + reações). Mais a **Metodologia**, que explica o método. |
+| 4 | Telas | **Consulta** (perfil → análise de coorte) e **Registrar atendimento** (uma consulta: perfil do dia, medicamento, status, reações). Painéis sobre o Data Mart: **Visão geral**, **Pacientes** e a ficha de cada um, **Medicamentos**, **Comparar**, **Reações adversas**. Mais a **Metodologia**. **Qualidade dos dados** ainda é tela em construção. |
 | 5 | Só dados sintéticos | Base com 6.000 perfis gerados. SQLite sem RLS nem audit log: casos registrados na tela têm de ser fictícios, e a tela diz isso. |
 
 ---
@@ -25,14 +25,14 @@ validado clinicamente — isso depende da médica responsável (ver seção 9).
 ```
  Navegador (SPA React + TS)                FastAPI  (medplan/api.py)          Motor (intacto)
 ┌───────────────────────────┐   JSON    ┌──────────────────────────────┐   ┌──────────────────┐
-│ /consulta   /registro     │ ────────▶ │ GET  /api/v1/referencias     │──▶│ engine.recomendar │
-│ /metodologia              │           │ GET  /api/v1/base            │   │ diagnosticar_     │
-│                           │ ◀──────── │ POST /api/v1/analises        │   │   escada          │
-│ estado da consulta no     │           │ POST /api/v1/casos           │   │ matching / stats  │
-│ fragmento da URL (#...)   │           │ GET  /api/v1/casos           │   └────────┬─────────┘
-└───────────────────────────┘           │ + web/dist em "/" (SPA)      │            │
-                                        │ medplan/registro.py (gravação)│            ▼
-                                        └──────────────────────────────┘   SQLite sintético
+│ /visao-geral  /consulta   │ ────────▶ │ GET  /api/v1/referencias     │──▶│ engine.recomendar │
+│ /pacientes  /paciente     │           │ GET  /api/v1/base            │   │ diagnosticar_     │
+│ /registro  /medicamentos  │ ◀──────── │ POST /api/v1/analises        │   │   escada          │
+│ /medicamentos/comparar    │           │ POST /api/v1/atendimentos    │   │ matching / stats  │
+│ /reacoes  /metodologia    │           │ POST /api/v1/paineis/...     │   │ paineis (fatos)   │
+│ estado da consulta e chave│           │ + web/dist em "/" (SPA)      │   └────────┬─────────┘
+│ do paciente no fragmento  │           │ atendimento.py (gravação)    │            ▼
+└───────────────────────────┘           └──────────────────────────────┘   SQLite sintético
                                                                             (medplan_prototipo.db)
 ```
 
@@ -62,18 +62,20 @@ atendimento também atualiza o perfil, a prescrição e o desfecho que o motor d
 Convenções do protótipo, pendentes de confirmação com a médica: `tabagista` = tabagismo
 "atual"; `dim_paciente.sexo` guarda a inicial dos quatro valores do banco (F, M, I, N).
 
-**Endpoints de leitura dos painéis** (todos aceitam os filtros globais `sexo`,
-`faixa_etaria_cod`, `diagnostico` (código ou grupo), `faixa_imc_cod`, `tabagista`,
-`comorbidades` (0 a 3, 3 = "3 ou mais")):
+**Endpoints dos painéis.** Todos são `POST` com corpo: filtros de perfil e chave do paciente
+nunca vão na URL (não chegam a log de servidor nem ao histórico). Os painéis aceitam os
+filtros globais em `filtros`: `sexo`, `faixa_etaria_cod`, `diagnostico` (código ou grupo),
+`faixa_imc_cod`, `tabagista`, `comorbidades` (0 a 3, 3 = "3 ou mais").
 
 | Rota | O que devolve |
 |---|---|
-| `GET /visao-geral` | contagens, diagnósticos e medicamentos mais frequentes, desfecho com IC, motivos, classe prescrita por grupo (`dividir_por`), pacientes recentes |
-| `GET /pacientes`, `GET /pacientes/{chave}` | lista com busca sem acento e paginação; ficha com atendimentos, tratamentos e reações |
+| `POST /paineis/visao-geral` | contagens, diagnósticos e medicamentos por volume, desfecho com IC, motivos, classe prescrita por grupo (`dividir_por`), pacientes recentes |
+| `POST /paineis/pacientes` | lista com busca sem acento (`q`), filtros próprios e paginação |
+| `POST /paineis/paciente` | ficha por `chave_pseudonima`: atendimentos, tratamentos e reações (404 se a chave não tem atendimento) |
+| `POST /paineis/medicamento` | permanência, contabilidade, curva de Kaplan-Meier com IC, quem recebe, reações, permanência por linha |
+| `POST /paineis/reacoes` | termos por SOC, gravidade, descontinuação por gravidade, dias até o início, reação × medicamento; aceita `medicamento_id` e `linha` |
+| `POST /paineis/peso-por-imc` | ganho e perda de peso por faixa de IMC no início do tratamento |
 | `POST /atendimentos` | registra uma consulta (chave da origem, perfil do dia, medicamento, status, reações) |
-| `GET /medicamentos/{id}/ficha` | permanência, contabilidade, curva de Kaplan-Meier com IC, quem recebe, reações, permanência por linha |
-| `GET /reacoes/resumo` | termos por SOC, gravidade, descontinuação por gravidade, dias até o início, reação × medicamento |
-| `GET /reacoes/peso-por-imc` | ganho e perda de peso por faixa de IMC no início do tratamento |
 
 Toda proporção desses painéis sai de `stats.proporcao`: `n` (casos), `n_base` (denominador),
 percentual e IC já arredondados; abaixo do n mínimo, só `n_base` e `suficiente: false`.
@@ -93,7 +95,8 @@ O que a API **acrescenta** ao motor, e por quê:
 4. **Proveniência** (`sintetico`, tamanho da base, hora do cálculo).
 5. **Frequência de prescrição** na coorte (classe e medicamento, com IC), a partir dos atendimentos.
 
-Registro de caso:
+Registro de caso (`POST /casos`, `GET /casos`): continua na API e testado, mas a interface web
+não o usa mais; a tela registra atendimentos. Regras:
 
 - Entrada fechada: `nome`, `cpf`, `prontuario`, `observacoes` ou qualquer campo não previsto → 422.
 - Mensagens de erro nunca repetem o valor enviado; nenhum corpo de requisição vai para log.
@@ -116,16 +119,21 @@ Registro de caso:
 web/src/
   api/          types.ts (espelho do contrato), client.ts, referencias.tsx (catálogos, 1 carga)
   app/          App (shell), Sidebar, BuscaRapida (Cmd/Ctrl+K), rotas (history API, sem
-                biblioteca), tema e SeletorTema (Sistema/Claro/Escuro)
+                biblioteca), tema e SeletorTema (Sistema/Claro/Escuro), filtros globais
+                (FiltrosProvider + BarraFiltros, só na memória da sessão)
   components/   Proporcao, FaixaIC, AvisoNaoPrescreve, AvisoViesIndicacao, FaixaSintetico,
                 PainelMedicao, Hachura, Combobox, MultiCombobox, SegmentedControl, Stepper,
-                NumberField, DateField, Field, Button, Drawer, LoadingLine, PainelFalha…
+                NumberField, DateField, Field, Button, Drawer, LoadingLine, PainelFalha,
+                LeituraProporcao, BarrasHorizontais, MapaCalor, CurvaPermanencia, EstadoApi…
   features/
     consulta/   perfil do paciente, prévia de relaxamento, escada, critérios ignorados,
                 tabela de permanência, detalhe por medicamento, sem dados suficientes
-    registro/   formulário, blocos de tratamento, linha do tempo, validação, payload
+    registro/   Registrar atendimento: modelo (validação, corpo do POST, erros 422), bloco
+                de reação, resumo lateral
+    visao-geral/ pacientes/ medicamentos/ reacoes/   painéis sobre o Data Mart
     metodologia/ conteúdo (drawer com Alt+M e página /metodologia), créditos das imagens
-  lib/          format (pt-BR), normalizar (busca sem acento), atalhos
+  lib/          format (pt-BR), normalizar (busca sem acento), atalhos, useApi (carga com
+                cancelamento), teste-paineis (apoio aos testes das telas de painel)
   styles/       tokens.css (design system), base.css
 ```
 
@@ -219,19 +227,31 @@ semáforo verde/amarelo/vermelho, animação de dados (barras e números aparece
 - **Teclado:** `/` foca o CID, `Ctrl+Enter` analisa de qualquer campo, `Alt+M` abre a
   Metodologia, setas navegam a tabela.
 
-### Registro de caso
+### Painéis (Visão geral, Medicamentos, Comparar, Reações)
 
-- Nota de privacidade fixa: sem nome, CPF, prontuário, nascimento, endereço ou texto livre;
-  casos fictícios apenas neste protótipo.
-- Formulário em cartões + resumo fixo com pendências clicáveis (levam ao campo) e `Ctrl+S`.
-- Blocos de tratamento T1…T10, recolhíveis, com linha do tempo em SVG. Remover pede confirmação
-  e deixa "Desfazer" persistente (sem temporizador — o médico é interrompido).
-- Status do desfecho em rádios visíveis, agrupados: sem desfecho conhecido / encerrado /
-  descontinuado. "Em uso" e "perdido" desabilitam a data fim.
-- Validação espelha a do servidor: erro bloqueante com ícone e texto; alerta de consistência em
-  âmbar, que não bloqueia.
-- Rascunho só em memória, com aviso ao sair da página. Depois de salvar: chave pseudônima,
-  resumo, alertas do servidor, "Consultar este perfil" e a lista dos casos recentes.
+- Filtros globais na barra do topo, como fichas removíveis; valem para Visão geral,
+  Medicamentos, Comparar e Reações e pré-preenchem a Consulta. Nas outras telas a barra diz que
+  não se aplicam. Ficam só na memória da sessão.
+- Toda proporção aparece com n e IC (`<LeituraProporcao>`); abaixo do n mínimo, "dados
+  insuficientes (n=…)" com textura, sem percentual. Contagens absolutas são rotuladas como tal.
+- Medicamentos em ordem alfabética, sem destaque. Comparar começa pelos dois mais usados do
+  recorte e diz que a comparação é observacional.
+
+### Registrar atendimento
+
+- Uma consulta por registro, em quatro cartões numerados: paciente (já registrado, pela chave
+  da origem, ou primeiro atendimento, com sexo), atendimento (data, faixa etária, IMC, tabagismo
+  com os quatro valores do banco, CID, comorbidades), medicamento prescrito (linha, status
+  agrupado) e reações relatadas (termo, medicamento que causou, data ou "não soube informar",
+  gravidade, se levou a parar).
+- Paciente já registrado: "Copiar do atendimento anterior" traz faixa, IMC e CID (e tabagismo
+  quando era fumante atual); a base guarda só a quantidade de comorbidades, então os códigos
+  são escolhidos de novo. "Manter" repete o medicamento em uso com a data de início original.
+  A reação pode ser de um medicamento anterior do paciente.
+- Resumo lateral: o que está sendo registrado, o que falta preencher (links que focam o
+  campo), a trajetória do paciente e a nota de privacidade (pacientes fictícios neste protótipo).
+- Erros nos campos depois de tentar salvar (`Ctrl+S`); os 422 do servidor vão para o campo.
+  Rascunho só em memória. Depois de salvar, abre a ficha do paciente.
 
 ### Metodologia
 
@@ -308,7 +328,6 @@ Em ordem de dependência. Nada disso está implementado.
 
 **Para o usuário / DPO**
 
-- Atualizar a seção 4 do `CLAUDE.md` para registrar React + FastAPI na fase 0.
 - Alinhar `stats.formatar_taxa` ("IC95% 54%–83%") ao formato do `CLAUDE.md` ("54–83%"), que a
   interface web já usa. Só o Streamlit usa essa função.
 - Estado da consulta no fragmento da URL em estação compartilhada fica no histórico do

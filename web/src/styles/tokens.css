@@ -74,6 +74,19 @@
   --color-data-censored: #B9C3D0;
   --color-data-hatch: #CDD3DB;
 
+  /* séries e escala sequencial neutra (heatmap): sem conotação de bom ou ruim */
+  --color-data-1: #4E5F75;
+  --color-data-2: #8796AA;
+  --color-data-3: #B9C3D0;
+  --color-seq-0: #F0F2F5;
+  --color-seq-1: #DCE3EC;
+  --color-seq-2: #B7C4D4;
+  --color-seq-3: #8A9DB5;
+  --color-seq-4: #5D7493;
+  --color-seq-5: #34496A;
+  --color-on-seq-claro: #121720;
+  --color-on-seq-escuro: #FFFFFF;
+
   /* ---- sobreposição ------------------------------------------------------------ */
   --scrim: rgba(18, 23, 32, 0.32);
   --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.03);
@@ -267,6 +280,18 @@
     --color-data-censored: #3C4A5C;
     --color-data-hatch: #36404D;
 
+    --color-data-1: #9AAEC6;
+    --color-data-2: #5F728B;
+    --color-data-3: #3C4A5C;
+    --color-seq-0: #1A2029;
+    --color-seq-1: #1F2B3A;
+    --color-seq-2: #2B3F57;
+    --color-seq-3: #3F5C7E;
+    --color-seq-4: #5E81A8;
+    --color-seq-5: #8FB0D4;
+    --color-on-seq-claro: #E8ECF1;
+    --color-on-seq-escuro: #0E1116;
+
     --scrim: rgba(4, 6, 9, 0.6);
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.5);
@@ -332,6 +357,18 @@
     --color-data-threshold: #E8ECF1;
     --color-data-censored: #3C4A5C;
     --color-data-hatch: #36404D;
+
+    --color-data-1: #9AAEC6;
+    --color-data-2: #5F728B;
+    --color-data-3: #3C4A5C;
+    --color-seq-0: #1A2029;
+    --color-seq-1: #1F2B3A;
+    --color-seq-2: #2B3F57;
+    --color-seq-3: #3F5C7E;
+    --color-seq-4: #5E81A8;
+    --color-seq-5: #8FB0D4;
+    --color-on-seq-claro: #E8ECF1;
+    --color-on-seq-escuro: #0E1116;
 
     --scrim: rgba(4, 6, 9, 0.6);
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);

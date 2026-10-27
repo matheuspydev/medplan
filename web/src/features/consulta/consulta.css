@@ -52,6 +52,7 @@
 .compositor__com { grid-column: span 5; }
 .compositor__sexo { grid-column: span 5; }
 .compositor__faixa { grid-column: span 7; }
+.compositor__imc { grid-column: span 5; }
 .compositor [id] {
   scroll-margin-top: calc(var(--shell-topo) + var(--space-8));
 }
@@ -915,7 +916,8 @@ s.substituicao__informado {
     grid-column: span 6;
   }
   .compositor__sexo,
-  .compositor__faixa {
+  .compositor__faixa,
+  .compositor__imc {
     grid-column: span 6;
   }
 }
@@ -924,7 +926,8 @@ s.substituicao__informado {
   .compositor__dx,
   .compositor__com,
   .compositor__sexo,
-  .compositor__faixa {
+  .compositor__faixa,
+  .compositor__imc {
     grid-column: 1 / -1;
   }
   .detalhe {
@@ -990,4 +993,11 @@ s.substituicao__informado {
     position: static;
     backdrop-filter: none;
   }
+}
+
+/* ---- frequência de prescrição -------------------------------------------------------- */
+.frequencia__titulo {
+  margin-bottom: 6px;
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-semibold);
 }

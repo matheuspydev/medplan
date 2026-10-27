@@ -19,7 +19,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import Field
@@ -400,33 +400,74 @@ def registrar_caso(caso: CasoEntrada):
 
 # =============================================================================
 # Painéis (Data Mart)
+#
+# POST com corpo, como a análise: filtros de perfil e chave pseudônima não vão para a URL
+# (que chega a logs e ao histórico do navegador).
 # =============================================================================
-def _filtros(
-    sexo: Literal[tuple(rotulos.SEXO)] | None = None,
-    faixa_etaria_cod: str | None = None,
-    diagnostico: str | None = Query(default=None, description="código CID-10 ou grupo, ex. F30-F39"),
-    faixa_imc_cod: str | None = None,
-    tabagista: bool | None = None,
-    comorbidades: int | None = Query(default=None, ge=0, le=3, description="3 = 3 ou mais"),
-) -> paineis.Filtros:
-    return paineis.Filtros(sexo, faixa_etaria_cod, diagnostico, faixa_imc_cod, tabagista, comorbidades)
+class FiltrosEntrada(Entrada):
+    sexo: Literal[tuple(rotulos.SEXO)] | None = None
+    faixa_etaria_cod: str | None = None
+    # código CID-10 ou grupo, ex. "F30-F39"
+    diagnostico: str | None = None
+    faixa_imc_cod: str | None = None
+    tabagista: bool | None = None
+    # quantidade de comorbidades; 3 = "3 ou mais"
+    comorbidades: int | None = Field(default=None, ge=0, le=3)
+
+    def para_painel(self) -> paineis.Filtros:
+        return paineis.Filtros(self.sexo, self.faixa_etaria_cod, self.diagnostico, self.faixa_imc_cod,
+                               self.tabagista, self.comorbidades)
 
 
-def _validar_filtros(conn: sqlite3.Connection, f: paineis.Filtros) -> None:
+class _ComFiltros(Entrada):
+    filtros: FiltrosEntrada = FiltrosEntrada()
+    n_minimo: int = Field(default=engine.N_MINIMO_PADRAO, ge=N_MINIMO_MIN, le=N_MINIMO_MAX)
+
+
+class VisaoGeralEntrada(_ComFiltros):
+    horizonte_dias: int = Field(default=HORIZONTE_PADRAO_DIAS, ge=HORIZONTE_MIN_DIAS, le=HORIZONTE_MAX_DIAS)
+    dividir_por: Literal[paineis.DIVISOES] = "faixa"
+
+
+class PacientesEntrada(Entrada):
+    q: str | None = Field(default=None, max_length=60)
+    sexo: Literal[tuple(rotulos.SEXO)] | None = None
+    faixa_etaria_cod: str | None = None
+    grupo: str | None = None
+    pagina: int = Field(default=1, ge=1)
+    por_pagina: int = Field(default=20, ge=1, le=100)
+
+
+class PacienteEntrada(Entrada):
+    chave_pseudonima: str = Field(max_length=32)
+
+
+class FichaMedicamentoEntrada(_ComFiltros):
+    medicamento_id: int
+    horizonte_dias: int = Field(default=HORIZONTE_PADRAO_DIAS, ge=HORIZONTE_MIN_DIAS, le=HORIZONTE_MAX_DIAS)
+
+
+class ReacoesEntrada(_ComFiltros):
+    medicamento_id: int | None = None
+    linha: Literal[tuple(c for c, _ in paineis.LINHAS)] | None = None
+
+
+class PesoImcEntrada(_ComFiltros):
+    medicamento_id: int
+
+
+def _validar_filtros(conn: sqlite3.Connection, f: FiltrosEntrada) -> paineis.Filtros:
     erros = []
     if f.faixa_etaria_cod and conn.execute("SELECT 1 FROM faixa_etaria WHERE codigo = ?", (f.faixa_etaria_cod,)).fetchone() is None:
-        erros.append({"campo": "faixa_etaria_cod", "mensagem": "Faixa etária não encontrada no catálogo."})
+        erros.append({"campo": "filtros.faixa_etaria_cod", "mensagem": "Faixa etária não encontrada no catálogo."})
     if f.faixa_imc_cod and conn.execute("SELECT 1 FROM faixa_imc WHERE codigo = ?", (f.faixa_imc_cod,)).fetchone() is None:
-        erros.append({"campo": "faixa_imc_cod", "mensagem": "Faixa de IMC não encontrada no catálogo."})
+        erros.append({"campo": "filtros.faixa_imc_cod", "mensagem": "Faixa de IMC não encontrada no catálogo."})
     if f.diagnostico and conn.execute("SELECT 1 FROM cid10 WHERE codigo = ? OR grupo = ?",
                                       (f.diagnostico, f.diagnostico)).fetchone() is None:
-        erros.append({"campo": "diagnostico", "mensagem": "Código ou grupo CID-10 não encontrado no catálogo."})
+        erros.append({"campo": "filtros.diagnostico", "mensagem": "Código ou grupo CID-10 não encontrado no catálogo."})
     if erros:
         raise ErroValidacao(erros)
-
-
-Horizonte = Query(default=HORIZONTE_PADRAO_DIAS, ge=HORIZONTE_MIN_DIAS, le=HORIZONTE_MAX_DIAS)
-NMinimo = Query(default=engine.N_MINIMO_PADRAO, ge=N_MINIMO_MIN, le=N_MINIMO_MAX)
+    return f.para_painel()
 
 
 def _medicamento_existe(conn: sqlite3.Connection, medicamento_id: int) -> None:
@@ -434,58 +475,52 @@ def _medicamento_existe(conn: sqlite3.Connection, medicamento_id: int) -> None:
         raise HTTPException(404, "Medicamento não encontrado no catálogo.")
 
 
-@router.get("/visao-geral")
-def visao_geral(filtros: paineis.Filtros = Depends(_filtros), horizonte_dias: int = Horizonte,
-                n_minimo: int = NMinimo, dividir_por: Literal[paineis.DIVISOES] = "faixa"):
+@router.post("/paineis/visao-geral")
+def visao_geral(e: VisaoGeralEntrada):
     with _conectar() as conn:
-        _validar_filtros(conn, filtros)
-        return paineis.visao_geral(paineis.Base(conn), filtros, horizonte_dias, n_minimo, dividir_por)
+        filtros = _validar_filtros(conn, e.filtros)
+        return paineis.visao_geral(paineis.Base(conn), filtros, e.horizonte_dias, e.n_minimo, e.dividir_por)
 
 
-@router.get("/pacientes")
-def listar_pacientes(q: str | None = Query(default=None, max_length=60),
-                     sexo: Literal[tuple(rotulos.SEXO)] | None = None, faixa_etaria_cod: str | None = None,
-                     grupo: str | None = None, pagina: int = Query(default=1, ge=1),
-                     por_pagina: int = Query(default=20, ge=1, le=100)):
+@router.post("/paineis/pacientes")
+def listar_pacientes(e: PacientesEntrada):
     with _conectar() as conn:
-        return paineis.pacientes(paineis.Base(conn), q, sexo, faixa_etaria_cod, grupo, pagina, por_pagina)
+        return paineis.pacientes(paineis.Base(conn), e.q, e.sexo, e.faixa_etaria_cod, e.grupo, e.pagina, e.por_pagina)
 
 
-@router.get("/pacientes/{chave}")
-def ficha_paciente(chave: str):
+@router.post("/paineis/paciente")
+def ficha_paciente(e: PacienteEntrada):
     with _conectar() as conn:
-        ficha = paineis.paciente(paineis.Base(conn), chave)
+        ficha = paineis.paciente(paineis.Base(conn), e.chave_pseudonima)
     if ficha is None:
         raise HTTPException(404, "Nenhum atendimento registrado para esta chave.")
     return ficha
 
 
-@router.get("/medicamentos/{medicamento_id}/ficha")
-def ficha_medicamento(medicamento_id: int, filtros: paineis.Filtros = Depends(_filtros),
-                      horizonte_dias: int = Horizonte, n_minimo: int = NMinimo):
+@router.post("/paineis/medicamento")
+def ficha_medicamento(e: FichaMedicamentoEntrada):
     with _conectar() as conn:
-        _medicamento_existe(conn, medicamento_id)
-        _validar_filtros(conn, filtros)
-        return paineis.ficha_medicamento(paineis.Base(conn), medicamento_id, filtros, horizonte_dias, n_minimo)
+        _medicamento_existe(conn, e.medicamento_id)
+        filtros = _validar_filtros(conn, e.filtros)
+        return paineis.ficha_medicamento(paineis.Base(conn), e.medicamento_id, filtros, e.horizonte_dias, e.n_minimo)
 
 
-@router.get("/reacoes/resumo")
-def resumo_reacoes(filtros: paineis.Filtros = Depends(_filtros), medicamento_id: int | None = None,
-                   linha: Literal[tuple(c for c, _ in paineis.LINHAS)] | None = None, n_minimo: int = NMinimo):
+@router.post("/paineis/reacoes")
+def resumo_reacoes(e: ReacoesEntrada):
     with _conectar() as conn:
-        if medicamento_id is not None:
-            _medicamento_existe(conn, medicamento_id)
-        _validar_filtros(conn, filtros)
-        return paineis.reacoes_resumo(paineis.Base(conn), filtros, medicamento_id, linha, n_minimo)
+        if e.medicamento_id is not None:
+            _medicamento_existe(conn, e.medicamento_id)
+        filtros = _validar_filtros(conn, e.filtros)
+        return paineis.reacoes_resumo(paineis.Base(conn), filtros, e.medicamento_id, e.linha, e.n_minimo)
 
 
-@router.get("/reacoes/peso-por-imc")
-def peso_por_imc(medicamento_id: int, filtros: paineis.Filtros = Depends(_filtros), n_minimo: int = NMinimo):
+@router.post("/paineis/peso-por-imc")
+def peso_por_imc(e: PesoImcEntrada):
     with _conectar() as conn:
-        _medicamento_existe(conn, medicamento_id)
-        _validar_filtros(conn, filtros)
+        _medicamento_existe(conn, e.medicamento_id)
+        filtros = _validar_filtros(conn, e.filtros)
         ids_termo = {r["termo"]: r["id"] for r in conn.execute("SELECT id, termo FROM reacao_adversa")}
-        return paineis.peso_por_imc(paineis.Base(conn), medicamento_id, filtros, n_minimo, ids_termo)
+        return paineis.peso_por_imc(paineis.Base(conn), e.medicamento_id, filtros, e.n_minimo, ids_termo)
 
 
 @router.post("/atendimentos", status_code=201)

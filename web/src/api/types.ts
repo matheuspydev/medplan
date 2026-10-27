@@ -126,6 +126,8 @@ export interface BaseResumo {
 // POST /api/v1/analises
 // ---------------------------------------------------------------------------
 export interface AnaliseEntrada {
+  /** Opcional: informada, a escada ganha o degrau de faixa de IMC. */
+  faixa_imc_cod?: string | null;
   sexo: Sexo;
   faixa_etaria_cod: string;
   cid10_principal: string;
@@ -244,7 +246,7 @@ export interface Proveniencia {
 
 export interface AnaliseResposta {
   /** Eco do perfil; horizonte_dias e n_minimo ficam na raiz. */
-  perfil: Pick<AnaliseEntrada, 'sexo' | 'faixa_etaria_cod' | 'cid10_principal' | 'comorbidades'>;
+  perfil: Pick<AnaliseEntrada, 'sexo' | 'faixa_etaria_cod' | 'cid10_principal' | 'comorbidades' | 'faixa_imc_cod'>;
   horizonte_dias: number;
   n_minimo: number;
   nivel: NivelAnalise;
@@ -253,63 +255,10 @@ export interface AnaliseResposta {
   escada: DegrauEscada[];
   avisos: Aviso[];
   total_censurado: number;
+  frequencia_prescricao: FrequenciaPrescricao;
   proveniencia: Proveniencia;
   recomendados: LinhaRecomendada[];
   sem_dados_suficientes: LinhaSemDadosSuficientes[];
-}
-
-// ---------------------------------------------------------------------------
-// POST /api/v1/casos
-// ---------------------------------------------------------------------------
-export interface PerfilRegistro {
-  sexo: Sexo;
-  faixa_etaria_cod: string;
-  cid10_principal: string;
-  comorbidades: string[];
-  /** Obrigatório na entrada; null = desconhecido. */
-  faixa_imc_cod: string | null;
-  tabagismo: Tabagismo;
-  gestacao_lactacao: GestacaoLactacao;
-  funcao_renal: FuncaoOrgao;
-  funcao_hepatica: FuncaoOrgao;
-  uso_substancias: UsoSubstancias;
-}
-
-export interface ReacaoEntrada {
-  reacao_adversa_id: number;
-  /** >= 0 ou null */
-  dias_ate_inicio?: number | null;
-  gravidade_observada: Gravidade;
-  levou_descontinuacao: boolean;
-}
-
-export interface DesfechoEntrada {
-  status: StatusTratamento;
-  /** ISO aaaa-mm-dd. Obrigatória se encerrado; proibida se em_uso/perdido_seguimento. */
-  data_fim?: string | null;
-  data_ultima_observacao?: string | null;
-  /** 1–5 ou null (não avaliada). */
-  efetividade_percebida?: number | null;
-}
-
-export interface TratamentoEntrada {
-  medicamento_id: number;
-  data_inicio: string;
-  /** > 0, até 2 casas. Sem faixa "plausível" (seria dado clínico inventado). */
-  dose_inicial?: number | null;
-  dose_manutencao?: number | null;
-  unidade_dose?: string | null;
-  via: Via;
-  /** >= 1, opcional */
-  linha_tratamento?: number | null;
-  desfecho: DesfechoEntrada;
-  reacoes: ReacaoEntrada[];
-}
-
-export interface CasoEntrada {
-  perfil: PerfilRegistro;
-  /** 1 a 10 */
-  tratamentos: TratamentoEntrada[];
 }
 
 /** {campo, mensagem}: formato dos erros 422 e dos alertas não bloqueantes. */
@@ -319,29 +268,206 @@ export interface ErroCampo {
   mensagem: string;
 }
 
-export interface CasoCriado {
-  id: number;
-  /** "REG-" + 8 caracteres sem ambíguos. */
+// ---------------------------------------------------------------------------
+// Painéis (POST /api/v1/paineis/...): proporções de stats.proporcao
+// ---------------------------------------------------------------------------
+/** Abaixo do n mínimo: só o denominador, sem casos, taxa, percentual ou IC (por contrato). */
+export interface ProporcaoInsuficiente {
+  suficiente: false;
+  n_base: number;
+}
+
+export interface ProporcaoSuficiente extends ProporcaoArredondada {
+  suficiente: true;
+  /** casos */
+  n: number;
+  /** denominador */
+  n_base: number;
+  taxa: number;
+}
+
+export type ProporcaoPainel = ProporcaoSuficiente | ProporcaoInsuficiente;
+
+export interface FrequenciaPrescricao {
+  n_atendimentos: number;
+  n_pacientes: number;
+  classes: (ProporcaoPainel & { classe_terapeutica: string })[];
+  medicamentos: (ProporcaoPainel & { medicamento_id: number; principio_ativo: string; classe_terapeutica: string })[];
+}
+
+/** Filtros globais. `diagnostico` = código CID-10 ou grupo ("F30-F39"); `comorbidades` 3 = "3 ou mais". */
+export interface FiltrosGlobais {
+  sexo?: Sexo;
+  faixa_etaria_cod?: string;
+  diagnostico?: string;
+  faixa_imc_cod?: string;
+  tabagista?: boolean;
+  comorbidades?: number;
+}
+
+export type DivisaoGrupo = 'faixa' | 'sexo' | 'imc' | 'tabagismo';
+
+export interface VisaoGeral {
+  horizonte_dias: number;
+  n_minimo: number;
+  contagens: { n_pacientes: number; n_atendimentos: number; n_tratamentos: number; n_reacoes: number; n_medicamentos: number };
+  diagnosticos: { codigo: string; descricao: string; n_pacientes: number }[];
+  medicamentos: { medicamento_id: number; principio_ativo: string; codigo_atc: string; n_tratamentos: number }[];
+  desfecho: { n_tratamentos: number; n_avaliavel: number; n_censurado: number; mantido: ProporcaoPainel; descontinuado: ProporcaoPainel };
+  /** Denominador: os tratamentos descontinuados. */
+  motivos: (ProporcaoPainel & { motivo: MotivoDescontinuacao; rotulo: string })[];
+  classe_por_grupo: {
+    dividir_por: DivisaoGrupo;
+    fixados_por_filtro: DivisaoGrupo[];
+    classes: string[];
+    linhas: { rotulo: string; n_atendimentos: number; celulas: (ProporcaoPainel & { classe: string; n_atendimentos_classe: number })[] }[];
+  };
+  recentes: PacienteResumo[];
+}
+
+export interface PacienteResumo {
   chave_pseudonima: string;
-  tratamentos: number;
-  reacoes: number;
-  criado_em: string;
-  /** Consistência NÃO bloqueante (REVISÃO 2 §8), pendente de validação da médica. */
-  alertas: ErroCampo[];
+  sexo: Sexo;
+  faixa_etaria_cod: string;
+  cid10: string;
+  descricao_cid: string;
+  medicamento_atual?: string;
+  n_atendimentos: number;
+  ultimo_atendimento: string;
+}
+
+export interface ListaPacientes {
+  total: number;
+  pagina: number;
+  por_pagina: number;
+  itens: PacienteResumo[];
+}
+
+export interface ReacaoRelatada {
+  reacao_adversa_id: number;
+  termo: string;
+  soc: string;
+  medicamento_id: number;
+  principio_ativo: string;
+  data_inicio_reacao: string | null;
+  dias_ate_reacao: number | null;
+  gravidade_observada: Gravidade;
+  levou_descontinuacao: boolean;
+}
+
+export interface FichaPaciente {
+  chave_pseudonima: string;
+  sexo: Sexo;
+  primeiro_atendimento: string;
+  ultimo_atendimento: string;
+  atendimentos: {
+    sk_atendimento: number;
+    data: string;
+    faixa_etaria_cod: string;
+    faixa_imc_cod: string | null;
+    tabagista: boolean;
+    qtd_comorbidades: number;
+    cid10: string;
+    medicamento_id: number;
+    principio_ativo: string;
+    linha_tratamento: number | null;
+    status: StatusTratamento;
+    dias_observados: number;
+    reacoes: ReacaoRelatada[];
+  }[];
+  tratamentos: {
+    medicamento_id: number;
+    principio_ativo: string;
+    linha_tratamento: number | null;
+    data_inicio: string;
+    data_ultima_observacao: string;
+    status: StatusTratamento;
+    encerrado: boolean;
+    n_atendimentos: number;
+  }[];
+}
+
+export interface PontoCurva {
+  dia: number;
+  sobrevida: number;
+  ic_inferior: number;
+  ic_superior: number;
+  n_em_risco: number;
+}
+
+export interface FichaMedicamento {
+  medicamento: Medicamento;
+  horizonte_dias: number;
+  n_minimo: number;
+  contabilidade: { n_tratamentos: number; n_avaliavel: number; n_retidos: number; n_descontinuados: number; n_censurado: number };
+  permanencia: ProporcaoPainel;
+  descontinuacao_por_motivo: (ProporcaoPainel & { motivo: MotivoDescontinuacao; rotulo: string })[];
+  /** null abaixo do n mínimo. */
+  curva: { ate_dias: number; dias_censura: number[]; pontos: PontoCurva[] } | null;
+  recebem: { sexos: OpcaoRotulo<Sexo>[]; linhas: { faixa_etaria_cod: string; rotulo: string; n_por_sexo: number[] }[] };
+  reacoes: (ProporcaoPainel & { reacao_adversa_id: number; termo: string; soc: string })[];
+  por_linha: { linha: '1' | '2' | '3+'; rotulo: string; n_tratamentos: number; permanencia: ProporcaoPainel }[];
+}
+
+export type LinhaTratamento = '1' | '2' | '3+';
+
+export interface ResumoReacoes {
+  n_minimo: number;
+  contagens: {
+    n_reacoes: number;
+    n_tratamentos: number;
+    tratamentos_com_reacao: ProporcaoPainel;
+    levaram_descontinuacao: ProporcaoPainel;
+    dias_ate_inicio: { n: number; mediana: number | null; q1: number | null; q3: number | null };
+  };
+  por_soc: { soc: string; n: number; termos: { termo: string; n: number }[] }[];
+  gravidade: (ProporcaoPainel & { gravidade: Gravidade; rotulo: string })[];
+  descontinuacao_por_gravidade: (ProporcaoPainel & { gravidade: Gravidade; rotulo: string })[];
+  dias_por_faixa: { rotulo: string; n: number }[];
+  reacao_x_medicamento: {
+    medicamentos: { medicamento_id: number; principio_ativo: string; n_tratamentos: number }[];
+    linhas: { reacao_adversa_id: number; termo: string; celulas: (ProporcaoPainel & { medicamento_id: number; n_tratamentos_com_reacao: number })[] }[];
+  };
+}
+
+export interface PesoPorImc {
+  medicamento: Medicamento;
+  n_minimo: number;
+  linhas: { faixa_imc_cod: string | null; rotulo: string; n_tratamentos: number; ganho_de_peso: ProporcaoPainel; perda_de_peso: ProporcaoPainel }[];
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/v1/casos?limite=10
+// POST /api/v1/atendimentos
 // ---------------------------------------------------------------------------
-export interface CasoResumo {
-  id: number;
-  chave_pseudonima: string;
-  /** Sempre por código; a UI mostra por extenso. */
-  sexo: Sexo;
+export interface ReacaoAtendimentoEntrada {
+  reacao_adversa_id: number;
+  /** Medicamento que causou: pode ser o anterior ao prescrito nesta consulta. */
+  medicamento_id: number;
+  data_inicio_medicamento: string;
+  data_inicio_reacao: string | null;
+  gravidade_observada: Gravidade;
+  levou_descontinuacao: boolean;
+}
+
+export interface AtendimentoEntrada {
+  paciente: { chave_pseudonima: string; sexo?: Sexo | null };
+  data_atendimento: string;
   faixa_etaria_cod: string;
+  faixa_imc_cod: string | null;
+  tabagismo: Tabagismo;
   cid10_principal: string;
   comorbidades: string[];
-  criado_em: string;
-  n_reacoes: number;
-  tratamentos: { principio_ativo: string; data_inicio: string; status: StatusTratamento }[];
+  medicamento_id: number;
+  data_inicio_medicamento: string;
+  linha_tratamento: number | null;
+  status: StatusTratamento;
+  reacoes: ReacaoAtendimentoEntrada[];
+}
+
+export interface AtendimentoCriado {
+  chave_pseudonima: string;
+  sk_atendimento: number;
+  prescricao_id: number;
+  n_atendimentos_paciente: number;
+  primeiro_atendimento: boolean;
 }

@@ -78,9 +78,11 @@ Viés para cautela sobre velocidade; em tarefa trivial, use bom senso.
 Fase atual: **0 (protótipo de validação clínica)**.
 
 Em uso: Python, PostgreSQL, SQL puro para análise de coorte, Streamlit no protótipo.
+Interface web do protótipo: React + TypeScript (Vite) sobre uma API FastAPI que reusa o
+motor (decisão do usuário; ver `ARQUITETURA_INTERFACE.md`).
 
 Fora por enquanto — adicionar só quando houver problema real que exija:
-Celery/Redis, Keycloak, MLflow, XGBoost/SHAP, React, Kubernetes, microserviços.
+Celery/Redis, Keycloak, MLflow, XGBoost/SHAP, Kubernetes, microserviços.
 A spec lista essas ferramentas como destino, não como ponto de partida.
 
 ## 5. Decisões em aberto (não assuma resposta)
