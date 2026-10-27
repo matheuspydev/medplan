@@ -189,6 +189,9 @@ function Ficha({ f }: { f: FichaMedicamento }) {
             <LeituraProporcao p={l.permanencia} nMinimo={nMinimo} />
           </div>
         ))}
+        {f.n_sem_linha > 0 && (
+          <p className="texto-apoio">{plural(f.n_sem_linha, 'tratamento sem linha informada fica', 'tratamentos sem linha informada ficam')} fora desta divisão.</p>
+        )}
         <p className="texto-apoio">Quem chega à 2ª ou 3ª linha costuma ter casos mais difíceis: diferenças entre linhas também refletem isso.</p>
       </section>
 

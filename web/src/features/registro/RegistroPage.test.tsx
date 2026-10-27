@@ -147,7 +147,7 @@ function preencherAtendimento() {
   escolherNoCombobox('reg-cid10_principal', 'f321');
   escolherNoCombobox('reg-medicamento_id', 'farmaco a');
   fireEvent.change(campo('reg-data_inicio_medicamento'), { target: { value: '2026-10-01' } });
-  fireEvent.click(grupo('reg-linha_tratamento').getByRole('radio', { name: '1ª' }));
+  fireEvent.click(grupo('reg-linha_tratamento').getByRole('radio', { name: 'Não sabemos' }));
   fireEvent.change(campo('reg-status'), { target: { value: 'em_uso' } });
 }
 
@@ -159,9 +159,9 @@ describe('Registrar atendimento', () => {
     expect(screen.queryByLabelText(/nome|CPF|prontuário|nascimento/i)).toBeNull();
 
     fireEvent.keyDown(window, { key: 's', ctrlKey: true });
-    expect(screen.getByRole('alert').textContent).toContain('Faltam 11 campos para salvar');
+    expect(screen.getByRole('alert').textContent).toContain('Faltam 10 campos para salvar');
     const resumo = within(screen.getByRole('complementary', { name: 'Resumo' }));
-    expect(resumo.getByText('Falta preencher (11)')).toBeTruthy();
+    expect(resumo.getByText('Falta preencher (10)')).toBeTruthy();
     expect(document.activeElement).toBe(campo('reg-chave'));
     expect(corpos).toEqual([]);
   });
@@ -205,7 +205,7 @@ describe('Registrar atendimento', () => {
       faixa_imc_cod: null,
       tabagismo: 'nunca',
       medicamento_id: 1,
-      linha_tratamento: 1,
+      linha_tratamento: null,
       status: 'em_uso',
       reacoes: [],
     });

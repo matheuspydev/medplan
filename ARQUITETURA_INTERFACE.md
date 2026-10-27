@@ -72,7 +72,7 @@ filtros globais em `filtros`: `sexo`, `faixa_etaria_cod`, `diagnostico` (código
 | `POST /paineis/visao-geral` | contagens, diagnósticos e medicamentos por volume, desfecho com IC, motivos, classe prescrita por grupo (`dividir_por`), pacientes recentes |
 | `POST /paineis/pacientes` | lista com busca sem acento (`q`), filtros próprios e paginação |
 | `POST /paineis/paciente` | ficha por `chave_pseudonima`: atendimentos, tratamentos e reações (404 se a chave não tem atendimento) |
-| `POST /paineis/medicamento` | permanência, contabilidade, curva de Kaplan-Meier com IC, quem recebe, reações, permanência por linha |
+| `POST /paineis/medicamento` | permanência, contabilidade, curva de Kaplan-Meier com IC, quem recebe, reações, permanência por linha e quantos tratamentos estão sem linha informada |
 | `POST /paineis/reacoes` | termos por SOC, gravidade, descontinuação por gravidade, dias até o início, reação × medicamento; aceita `medicamento_id` e `linha` |
 | `POST /paineis/peso-por-imc` | ganho e perda de peso por faixa de IMC no início do tratamento |
 | `POST /atendimentos` | registra uma consulta (chave da origem, perfil do dia, medicamento, status, reações) |
@@ -241,8 +241,8 @@ semáforo verde/amarelo/vermelho, animação de dados (barras e números aparece
 
 - Uma consulta por registro, em quatro cartões numerados: paciente (já registrado, pela chave
   da origem, ou primeiro atendimento, com sexo), atendimento (data, faixa etária, IMC, tabagismo
-  com os quatro valores do banco, CID, comorbidades), medicamento prescrito (linha, status
-  agrupado) e reações relatadas (termo, medicamento que causou, data ou "não soube informar",
+  com os quatro valores do banco, CID, comorbidades), medicamento prescrito (linha opcional,
+  com "Não sabemos" para não estimar; status agrupado) e reações relatadas (termo, medicamento que causou, data ou "não soube informar",
   gravidade, se levou a parar).
 - Paciente já registrado: "Copiar do atendimento anterior" traz faixa, IMC e CID (e tabagismo
   quando era fumante atual); a base guarda só a quantidade de comorbidades, então os códigos

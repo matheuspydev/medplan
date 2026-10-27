@@ -37,6 +37,7 @@ function ficha(medicamento: typeof farmacoA, suficiente: boolean): FichaMedicame
     recebem: { sexos: [{ codigo: 'feminino', rotulo: 'Feminino' }], linhas: [{ faixa_etaria_cod: '26_35', rotulo: '26 a 35 anos', n_por_sexo: [9] }] },
     reacoes: [],
     por_linha: [{ linha: '1', rotulo: '1ª linha', n_tratamentos: 9, permanencia: insuficiente(9) }],
+    n_sem_linha: 3,
   };
 }
 
@@ -54,6 +55,7 @@ describe('Medicamentos', () => {
     expect(corpos.at(-1)).toEqual({ caminho: '/paineis/medicamento', corpo: { medicamento_id: 2, filtros: {} } });
     expect(screen.getByText('Curva não exibida: menos de 20 tratamentos no recorte.')).toBeTruthy();
     expect(screen.getByRole('img', { name: 'dados insuficientes; n igual a 9' })).toBeTruthy();
+    expect(screen.getByText('3 tratamentos sem linha informada ficam fora desta divisão.')).toBeTruthy();
   });
 });
 

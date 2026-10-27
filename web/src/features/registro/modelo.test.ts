@@ -35,7 +35,6 @@ describe('validar', () => {
       'cid10_principal',
       'medicamento_id',
       'data_inicio_medicamento',
-      'linha_tratamento',
       'status',
     ]);
     expect(chaves(completo())).toEqual([]);
@@ -69,6 +68,12 @@ describe('validar', () => {
 });
 
 describe('montarEntrada', () => {
+  it('linha de tratamento é opcional: em branco ou "Não sabemos" vai como null, sem pendência', () => {
+    expect(chaves(completo({ linha_tratamento: undefined }))).toEqual([]);
+    expect(montarEntrada(completo({ linha_tratamento: undefined })).linha_tratamento).toBeNull();
+    expect(montarEntrada(completo({ linha_tratamento: null })).linha_tratamento).toBeNull();
+  });
+
   it('paciente já registrado não envia sexo; primeiro atendimento envia', () => {
     expect(montarEntrada(completo()).paciente).toEqual({ chave_pseudonima: 'REG-TESTE01' });
     expect(montarEntrada(completo({ modo: 'novo', sexo: 'feminino' })).paciente).toEqual({ chave_pseudonima: 'REG-TESTE01', sexo: 'feminino' });

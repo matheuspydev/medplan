@@ -407,6 +407,8 @@ export interface FichaMedicamento {
   recebem: { sexos: OpcaoRotulo<Sexo>[]; linhas: { faixa_etaria_cod: string; rotulo: string; n_por_sexo: number[] }[] };
   reacoes: (ProporcaoPainel & { reacao_adversa_id: number; termo: string; soc: string })[];
   por_linha: { linha: '1' | '2' | '3+'; rotulo: string; n_tratamentos: number; permanencia: ProporcaoPainel }[];
+  /** Tratamentos sem linha informada: fora da divisão por linha. */
+  n_sem_linha: number;
 }
 
 export type LinhaTratamento = '1' | '2' | '3+';

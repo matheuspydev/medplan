@@ -48,11 +48,15 @@ const GRUPOS_STATUS: { rotulo: string; grupo: GrupoStatus }[] = [
   { rotulo: 'Descontinuado', grupo: 'descontinuacao' },
 ];
 
+/** Valor do controle de linha para "Não sabemos" (vira null no corpo). */
+const LINHA_NAO_SABEMOS = 'nao_sabemos';
+
 const LINHAS = [
   { valor: '1', rotulo: '1ª' },
   { valor: '2', rotulo: '2ª' },
   { valor: '3', rotulo: '3ª' },
   { valor: '4', rotulo: '4ª ou mais' },
+  { valor: LINHA_NAO_SABEMOS, rotulo: 'Não sabemos' },
 ];
 
 const GRUPOS_COMORBIDADE = [
@@ -522,13 +526,12 @@ function Formulario({ catalogo, chaveInicial }: { catalogo: Catalogo; chaveInici
               <Field
                 id={id('linha_tratamento')}
                 rotulo="Linha de tratamento"
-                obrigatorio
                 grupo
-                ajuda={
+                ajuda={`${
                   ficha
                     ? `Pelo histórico, um medicamento novo seria a ${Math.min(maiorLinha + 1, 4)}ª linha${maiorLinha + 1 >= 4 ? ' ou mais' : ''}.`
                     : 'Primeiro medicamento tentado = 1ª linha.'
-                }
+                } Opcional: se não souber, marque "Não sabemos" em vez de estimar.`}
                 erro={erro('linha_tratamento')}
                 className="registro-linha"
               >
@@ -537,8 +540,14 @@ function Formulario({ catalogo, chaveInicial }: { catalogo: Catalogo; chaveInici
                     {...a11y}
                     nome={id('linha_tratamento')}
                     opcoes={LINHAS}
-                    valor={rascunho.linha_tratamento === null ? null : String(Math.min(rascunho.linha_tratamento, 4))}
-                    onChange={(v) => mudar({ linha_tratamento: Number(v) })}
+                    valor={
+                      rascunho.linha_tratamento === undefined
+                        ? null
+                        : rascunho.linha_tratamento === null
+                          ? LINHA_NAO_SABEMOS
+                          : String(Math.min(rascunho.linha_tratamento, 4))
+                    }
+                    onChange={(v) => mudar({ linha_tratamento: v === LINHA_NAO_SABEMOS ? null : Number(v) })}
                   />
                 )}
               </Field>

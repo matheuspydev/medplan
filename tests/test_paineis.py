@@ -135,6 +135,7 @@ class TestPaineis(ComBanco, InvariantesDeProporcao):
             self.assertLessEqual(seguinte["sobrevida"], seguinte["ic_superior"])
         self.assertEqual(sum(sum(l["n_por_sexo"]) for l in ficha["recebem"]["linhas"]), c["n_tratamentos"])
         self.assertEqual([l["linha"] for l in ficha["por_linha"]], ["1", "2", "3+"])
+        self.assertEqual(sum(l["n_tratamentos"] for l in ficha["por_linha"]) + ficha["n_sem_linha"], c["n_tratamentos"])
         self.verificar_proporcoes(ficha, 20)
         self.assertEqual(self.post("medicamento", medicamento_id=99999).status_code, 404)
 

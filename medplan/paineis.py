@@ -314,6 +314,8 @@ def ficha_medicamento(base: Base, medicamento_id: int, filtros: Filtros, horizon
                      **proporcao(len(ts), len(trats), n_minimo)}
                     for rid, ts in reacoes],
         "por_linha": por_linha,
+        # linha não informada (opcional no registro): fica fora da divisão, mas é contada
+        "n_sem_linha": sum(1 for t in trats if _linha(t) is None),
     }
 
 

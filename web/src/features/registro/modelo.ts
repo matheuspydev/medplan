@@ -3,7 +3,8 @@
  * e o caminho dos erros 422 até o campo da tela.
  *
  * `null` em qualquer escolha = ainda não escolhido (a UI exige escolha explícita).
- * Exceção: `faixa_imc_cod`, onde `undefined` = não escolhida e `null` = "Não informado".
+ * Exceções, onde `undefined` = não escolhida e `null` = desconhecido: `faixa_imc_cod`
+ * ("Não informado") e `linha_tratamento` ("Não sabemos", opcional: o banco aceita vazio).
  *
  * Chaves de campo: o nome do campo ("data_atendimento", "chave", "sexo") e, nas reações,
  * "r7.gravidade_observada" (o id da reação não muda quando outra é removida).
@@ -40,7 +41,7 @@ export interface Rascunho {
   comorbidades: string[];
   medicamento_id: number | null;
   data_inicio_medicamento: string | null;
-  linha_tratamento: number | null;
+  linha_tratamento: number | null | undefined;
   status: StatusTratamento | null;
   reacoes: RascunhoReacao[];
 }
@@ -78,7 +79,7 @@ export function novoRascunho(chave: string | null): Rascunho {
     comorbidades: [],
     medicamento_id: null,
     data_inicio_medicamento: null,
-    linha_tratamento: null,
+    linha_tratamento: undefined,
     status: null,
     reacoes: [],
   };
@@ -160,7 +161,6 @@ export function validar(rascunho: Rascunho, hoje: string, pacienteEncontrado: bo
   if (!a.data_inicio_medicamento) falta('data_inicio_medicamento');
   else if (a.data_atendimento && a.data_inicio_medicamento > a.data_atendimento)
     falta('data_inicio_medicamento', 'O início do medicamento não pode ser depois do atendimento.');
-  if (a.linha_tratamento === null) falta('linha_tratamento');
   if (a.status === null) falta('status');
 
   const vistas = new Set<string>();
@@ -197,7 +197,7 @@ export function montarEntrada(a: Rascunho): AtendimentoEntrada {
     comorbidades: [...a.comorbidades],
     medicamento_id: a.medicamento_id!,
     data_inicio_medicamento: a.data_inicio_medicamento!,
-    linha_tratamento: a.linha_tratamento,
+    linha_tratamento: a.linha_tratamento ?? null,
     status: a.status!,
     reacoes: a.reacoes.map((r) => {
       const causador = causadorDe(r, a)!;
