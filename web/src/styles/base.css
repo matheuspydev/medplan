@@ -108,10 +108,40 @@ a:hover {
 }
 .titulo-tela {
   font-family: var(--font-display);
-  font-size: var(--text-screen-size);
-  line-height: var(--text-screen-line);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--tracking-display);
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.titulo-tela:focus {
+  outline: none;
+}
+
+/* ---- página: área de conteúdo e cabeçalho de tela (título à esquerda, aviso à direita) ---- */
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 87.5rem;
+  padding: var(--space-8);
+}
+.cabecalho-pagina {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+}
+.cabecalho-pagina__texto {
+  max-width: 45rem;
+  margin-top: 6px;
+  color: var(--color-text-secondary);
+}
+@media (max-width: 1023.98px) {
+  .pagina {
+    padding: var(--space-4);
+  }
 }
 .code {
   font-size: inherit;

@@ -152,11 +152,11 @@ componente que o n e o IC.
 | Dados insuficientes | pílula com textura diagonal suave, sem percentual |
 
 **Gráfico de intervalo.** Trilho arredondado com eixo fixo 0–100%, barra do IC, ponto da
-estimativa (cresce com √n) e traço azul no limite inferior quando ele é o critério de ordem.
+estimativa (cresce com √n) e traço teal no limite inferior quando ele é o critério de ordem.
 
-**Cabeçalhos e rodapé.** Cada tela abre com um cabeçalho centralizado (sobretítulo azul, título
-grande, uma frase). O rodapé traz as letras miúdas, como as notas legais do apple.com: apoio à
-decisão, dados sintéticos e o link para a Metodologia.
+**Cabeçalhos e rodapé.** Cada tela abre com o título à esquerda (32px), uma frase de apoio e, à
+direita, a linha "Apoio à decisão. Não é prescrição." quando a tela tem números. O rodapé traz as
+letras miúdas e o link para a Metodologia.
 
 **Evitado de propósito.** Excesso de rótulos e legendas, caixa-alta, numeração de seções,
 semáforo verde/amarelo/vermelho, animação de dados (barras e números aparecem prontos).
@@ -179,7 +179,7 @@ semáforo verde/amarelo/vermelho, animação de dados (barras e números aparece
 - **Escada da coorte** como seis etapas lado a lado: perfis, maior n avaliável, medicamentos, barra
   com a marca do n mínimo e a etapa "Parou aqui" destacada; as seguintes ficam esmaecidas.
 - **Lista de permanência:** `68% (n=22, IC95% 47–84%)` num único componente, com o limite
-  inferior em azul, e ao lado o gráfico de intervalo. Quando a ordem contraria a taxa pontual,
+  inferior em teal, e ao lado o gráfico de intervalo. Quando a ordem contraria a taxa pontual,
   uma nota explica o porquê ("n menor", "IC mais largo").
 - **Detalhe inline** por medicamento: contabilidade (retidos, descontinuados, censurados), os
   quatro motivos com IC e as reações adversas mais frequentes com IC, mediana de dias e quantas

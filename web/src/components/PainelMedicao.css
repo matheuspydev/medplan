@@ -2,14 +2,13 @@
   position: relative;
   min-width: 0;
   background: var(--color-surface);
+  border: 1px solid var(--color-rule-hairline);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
-.painel-medicao--medicao {
-  padding: var(--space-6) var(--space-6) var(--space-5);
-}
+.painel-medicao--medicao,
 .painel-medicao--formulario {
-  padding: var(--space-8);
+  padding: var(--space-5);
 }
 
 .painel-medicao__cabecalho {
@@ -17,8 +16,8 @@
   align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-6);
-  margin-bottom: var(--space-5);
+  gap: 6px var(--space-3);
+  margin-bottom: var(--space-4);
 }
 .painel-medicao__textos {
   display: flex;
@@ -27,10 +26,10 @@
   min-width: 0;
 }
 .painel-medicao__titulo {
-  font-size: var(--text-title-size);
-  line-height: var(--text-title-line);
+  font-size: 1.125rem;
+  line-height: 1.5rem;
   font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--tracking-title);
+  letter-spacing: -0.01em;
   color: var(--color-text-primary);
 }
 .painel-medicao__titulo:focus {
@@ -38,8 +37,8 @@
 }
 .painel-medicao__subtitulo {
   color: var(--color-text-tertiary);
-  font-size: var(--text-base-size);
-  line-height: var(--text-base-line);
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
 }
 .painel-medicao__lateral {
   display: flex;

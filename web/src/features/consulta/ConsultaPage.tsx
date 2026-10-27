@@ -42,8 +42,16 @@ import './consulta.css';
 
 export default function ConsultaPage() {
   return (
-    <div className="consulta-raiz">
-      <h1 className="sr-only">Consulta</h1>
+    <div className="pagina consulta-raiz">
+      <header className="cabecalho-pagina">
+        <div>
+          <h1 className="titulo-tela">Consulta por perfil</h1>
+          <p className="cabecalho-pagina__texto">
+            Como pacientes de perfil semelhante na base toleraram cada medicamento: mantido ou descontinuado, por quê e em quanto tempo.
+          </p>
+        </div>
+        <AvisoNaoPrescreve />
+      </header>
       <ComReferencias>{(catalogo) => <Consulta catalogo={catalogo} />}</ComReferencias>
     </div>
   );
@@ -217,17 +225,6 @@ function Consulta({ catalogo }: { catalogo: Catalogo }) {
 
   return (
     <div className="consulta" onKeyDownCapture={aoTeclarCaptura}>
-      {!resposta && !falha && (
-        <section className="hero" aria-labelledby="hero-titulo">
-          <p className="hero__sobre">Consulta de coorte</p>
-          <h2 id="hero-titulo" className="hero__titulo">
-            Como pacientes parecidos toleraram cada medicamento.
-          </h2>
-          <p className="hero__texto">Todo resultado vem com n e intervalo de confiança, e com os limites dos dados à vista.</p>
-          <AvisoNaoPrescreve />
-        </section>
-      )}
-
       <PerfilPaciente
         ref={refPerfil}
         catalogo={catalogo}

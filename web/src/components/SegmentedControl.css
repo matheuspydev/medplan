@@ -2,10 +2,7 @@
 .segmentado {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius-control);
-  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+  gap: 6px;
 }
 .segmentado--grade {
   display: grid;
@@ -13,10 +10,13 @@
 .segmentado__opcao {
   position: relative;
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
 }
-/* rádio nativo invisível cobrindo o segmento: mantém teclado e leitura de tela nativos */
+.segmentado--grade .segmentado__opcao {
+  flex: 1 1 auto;
+}
+/* rádio nativo invisível cobrindo o botão: mantém teclado e leitura de tela nativos */
 .segmentado__radio {
   position: absolute;
   inset: 0;
@@ -32,31 +32,27 @@
   align-items: center;
   justify-content: center;
   flex: 1;
-  min-height: calc(var(--size-control) - 4px);
+  min-height: 36px;
   padding: 0 var(--space-3);
-  border-radius: 8px;
-  color: var(--color-text-primary);
+  border: 1px solid var(--color-rule-control);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   font-size: var(--text-table-size);
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
   text-align: center;
-  transition: background-color var(--duration-fast) var(--easing-standard), box-shadow var(--duration-fast) var(--easing-standard);
+  transition: background-color var(--duration-fast) var(--easing-standard), border-color var(--duration-fast) var(--easing-standard);
 }
 .segmentado__radio:hover:not(:disabled):not(:checked) + .segmentado__rotulo {
-  background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+  background: var(--color-surface-hover);
 }
 .segmentado__radio:checked + .segmentado__rotulo {
-  background: var(--color-surface);
-  box-shadow: var(--shadow-thumb);
+  border-color: var(--color-action);
+  background: var(--color-action-tint);
+  box-shadow: inset 0 0 0 1px var(--color-action);
+  color: var(--color-action-text);
   font-weight: var(--font-weight-semibold);
-}
-:root[data-theme='dark'] .segmentado__radio:checked + .segmentado__rotulo {
-  background: #636366;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .segmentado__radio:checked + .segmentado__rotulo {
-    background: #636366;
-  }
 }
 .segmentado__radio:focus-visible + .segmentado__rotulo {
   outline: var(--focus-width) solid var(--color-focus);
@@ -65,6 +61,6 @@
 .segmentado__radio:disabled + .segmentado__rotulo {
   color: var(--color-text-disabled);
 }
-.segmentado[aria-invalid='true'] {
-  box-shadow: inset 0 0 0 1px var(--color-error);
+.segmentado[aria-invalid='true'] .segmentado__rotulo {
+  border-color: var(--color-error);
 }

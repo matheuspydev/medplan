@@ -5,7 +5,7 @@
  * - 'completo' (padrão) e 'compacto': uma linha com ícone.
  * - 'curto': texto mínimo sob o botão Analisar.
  */
-import { Stethoscope } from 'lucide-react';
+import { Info } from 'lucide-react';
 import './AvisoNaoPrescreve.css';
 
 export interface AvisoNaoPrescreveProps {
@@ -19,17 +19,15 @@ export function AvisoNaoPrescreve({ variante = 'completo', className }: AvisoNao
   if (variante === 'curto') {
     return (
       <p className={classes} role="note">
-        Apoio à decisão, não prescrição.
+        Apoio à decisão. Não é prescrição.
       </p>
     );
   }
 
   return (
     <div className={classes} role="note">
-      <Stethoscope size={14} aria-hidden="true" className="aviso-nao-prescreve__icone" />
-      <p>
-        <strong className="aviso-nao-prescreve__rotulo">Apoio à decisão — não é prescrição.</strong> A decisão é do médico.
-      </p>
+      <Info size={16} aria-hidden="true" className="aviso-nao-prescreve__icone" />
+      <p>Apoio à decisão. Não é prescrição.</p>
     </div>
   );
 }

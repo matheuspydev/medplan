@@ -7,9 +7,9 @@
   border: 0;
   border-radius: 4px;
   background: none;
-  color: var(--color-action);
+  color: var(--color-action-text);
   font-size: inherit;
-  font-weight: var(--font-weight-medium);
+  font-weight: 550;
   white-space: nowrap;
 }
 .link-metodologia:hover {
@@ -39,18 +39,18 @@
   list-style: none;
 }
 .metodologia__indice button {
-  min-height: 2rem;
-  padding: 0 var(--space-4);
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-rule-control);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
   color: var(--color-text-primary);
   font-size: var(--text-table-size);
-  font-weight: var(--font-weight-medium);
+  font-weight: 550;
   transition: background-color var(--duration-fast) var(--easing-standard);
 }
 .metodologia__indice button:hover {
-  background: color-mix(in srgb, var(--color-text-primary) 11%, transparent);
+  background: var(--color-surface-hover);
 }
 .metodologia__indice .num {
   margin-right: var(--space-2);
@@ -64,8 +64,9 @@
   scroll-margin-top: var(--space-4);
 }
 .metodologia--pagina .metodologia__secao {
-  padding: var(--space-10) var(--space-10) var(--space-8);
-  border-radius: 24px;
+  padding: var(--space-6);
+  border: 1px solid var(--color-rule-hairline);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
   scroll-margin-top: calc(var(--shell-topo) + var(--space-4));
@@ -79,26 +80,22 @@
   align-items: baseline;
   gap: var(--space-3);
   margin-bottom: var(--space-1);
-  font-size: 1.75rem;
-  line-height: 2.125rem;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
   font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--tracking-title);
-}
-.metodologia--drawer .metodologia__titulo {
-  font-size: var(--text-title-size);
-  line-height: var(--text-title-line);
+  letter-spacing: -0.01em;
 }
 .metodologia__titulo:focus {
   outline: none;
 }
 .metodologia__titulo .num {
-  color: var(--color-action);
+  color: var(--color-text-tertiary);
 }
 .metodologia__secao p,
 .metodologia__secao li {
   color: var(--color-text-secondary);
-  font-size: var(--text-prose-size);
-  line-height: var(--text-prose-line);
+  font-size: var(--text-table-size);
+  line-height: 1.5;
   max-width: var(--measure-prose);
 }
 .metodologia__secao strong {
@@ -122,8 +119,9 @@
 .metodologia__formula {
   padding: var(--space-5);
   overflow-x: auto;
-  border-radius: var(--radius-inner);
-  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-rule-hairline);
+  border-radius: 12px;
+  background: var(--color-canvas);
   font-family: var(--font-mono);
   font-size: var(--text-table-size);
   line-height: 1.6;
@@ -166,8 +164,9 @@
   list-style: none;
   padding: var(--space-5) !important;
   gap: var(--space-3) !important;
-  border-radius: var(--radius-inner);
-  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-rule-hairline);
+  border-radius: 12px;
+  background: var(--color-canvas);
 }
 .metodologia__censura li {
   display: grid;
@@ -181,7 +180,7 @@
   width: 100%;
   height: auto;
   overflow: visible;
-  color: var(--color-action);
+  color: var(--color-text-secondary);
 }
 .metodologia__censura .metodologia__eixo-censura {
   display: flex;
@@ -197,9 +196,10 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-5);
-  border-radius: var(--radius-inner);
-  background: var(--color-surface-sunken);
-  --plot-ground: var(--color-surface-sunken);
+  border: 1px solid var(--color-rule-hairline);
+  border-radius: 12px;
+  background: var(--color-canvas);
+  --plot-ground: var(--color-canvas);
 }
 .metodologia__exemplo-linha {
   display: flex;
@@ -252,42 +252,31 @@
 
 /* ---- página /metodologia ---------------------------------------------------------- */
 .pagina-metodologia {
-  padding: var(--space-12) var(--space-6) var(--space-16);
+  padding: var(--space-8);
 }
 .pagina-metodologia__coluna {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
   max-width: 60rem;
-  margin: 0 auto;
 }
 .pagina-metodologia__topo {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-6);
-  text-align: center;
-}
-.pagina-metodologia__topo .titulo-tela {
-  font-size: var(--text-hero-size);
-  line-height: var(--text-hero-line);
-  font-weight: var(--font-weight-bold);
-}
-.pagina-metodologia__topo .titulo-tela:focus {
-  outline: none;
+  gap: 6px;
+  margin-bottom: var(--space-2);
 }
 .pagina-metodologia__sub {
-  max-width: 34rem;
-  color: var(--color-text-tertiary);
-  font-size: 1.3125rem;
-  line-height: 1.4;
-  text-wrap: balance;
+  max-width: 45rem;
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 767.98px) {
+  .pagina-metodologia {
+    padding: var(--space-4);
+  }
   .metodologia--pagina .metodologia__secao {
-    padding: var(--space-6) var(--space-5);
+    padding: var(--space-5) var(--space-4);
   }
   .metodologia__censura li {
     grid-template-columns: minmax(0, 1fr);

@@ -18,7 +18,10 @@
   min-width: var(--readout-pct-slot);
   text-align: right;
   color: var(--color-text-primary);
-  font-weight: var(--font-weight-semibold);
+  font-weight: 650;
+}
+.proporcao--destaque .proporcao__pct {
+  font-size: 1.0625rem;
 }
 .proporcao__inf {
   color: var(--color-text-tertiary);

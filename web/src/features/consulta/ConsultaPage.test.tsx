@@ -125,7 +125,7 @@ describe('<ConsultaPage>', () => {
   it('antes da leitura: disclaimer + prévia; submit incompleto marca e foca o diagnóstico, sem chamar a API', async () => {
     const { analises } = montar([]);
     expect(await screen.findByText('Se faltarem casos, o sistema ignora nesta ordem')).toBeTruthy();
-    expect(screen.getAllByRole('note').some((n) => n.textContent?.includes('Apoio à decisão — não é prescrição.'))).toBe(true);
+    expect(screen.getAllByRole('note').some((n) => n.textContent?.includes('Apoio à decisão. Não é prescrição.'))).toBe(true);
     // sexo e faixa sem pré-seleção
     expect(screen.getAllByRole('radio').every((r) => !(r as HTMLInputElement).checked)).toBe(true);
 
