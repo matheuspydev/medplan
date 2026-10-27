@@ -19,13 +19,14 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import Field
 
-from . import db, engine, rotulos
-from .matching import NIVEIS, Nivel, PerfilAlvo
+from . import atendimento, db, engine, paineis, rotulos
+from . import matching
+from .matching import Nivel, PerfilAlvo, construir_consulta, niveis_para
 from .registro import (
     FILTRO_DIAGNOSTICO,
     HOSPITAL_ID,
@@ -38,7 +39,7 @@ from .registro import (
     validar,
     validar_perfil,
 )
-from .stats import HORIZONTE_PADRAO_DIAS, ResultadoHorizonte, ic_wilson
+from .stats import HORIZONTE_PADRAO_DIAS, ResultadoHorizonte, com_ic, ic_wilson
 
 WEB_DIST = db.RAIZ / "web" / "dist"
 
@@ -87,6 +88,8 @@ class AnaliseEntrada(Entrada):
     faixa_etaria_cod: str
     cid10_principal: str
     comorbidades: list[str] = []
+    # Opcional: informada, a escada ganha o degrau de IMC (ver matching.niveis_para).
+    faixa_imc_cod: str | None = None
     horizonte_dias: int = Field(default=HORIZONTE_PADRAO_DIAS,
                                 ge=HORIZONTE_MIN_DIAS, le=HORIZONTE_MAX_DIAS)
     n_minimo: int = Field(default=engine.N_MINIMO_PADRAO, ge=N_MINIMO_MIN, le=N_MINIMO_MAX)
@@ -103,28 +106,13 @@ def _conectar():
 # =============================================================================
 # Serialização da análise
 # =============================================================================
-def _pct(x: float) -> int:
-    """Percentual inteiro com o critério do motor (1/8 vira 12, não 13)."""
-    return int(format(x, ".0%")[:-1])
-
-
-def _com_ic(valor: float, ic: tuple[float, float]) -> dict:
-    return {
-        "pct": _pct(valor),
-        "ic_inferior": ic[0],
-        "ic_superior": ic[1],
-        "ic_inferior_pct": _pct(ic[0]),
-        "ic_superior_pct": _pct(ic[1]),
-    }
-
-
 def _motivos(r: ResultadoHorizonte) -> list[dict]:
     itens = []
     for motivo, rotulo in rotulos.MOTIVO_DESCONTINUACAO.items():
         n = r.eventos_por_motivo.get(motivo, 0)
         taxa = r.taxa_motivo(motivo)
         itens.append({"motivo": motivo, "rotulo": rotulo, "n": n, "n_base": r.n_avaliavel,
-                      "taxa": taxa, **_com_ic(taxa, ic_wilson(n, r.n_avaliavel))})
+                      "taxa": taxa, **com_ic(taxa, ic_wilson(n, r.n_avaliavel))})
     return itens
 
 
@@ -139,7 +127,7 @@ def _recomendado(posicao: int, linha: engine.LinhaMedicamento) -> dict:
         "n_episodios": linha.n_episodios,
         "permanencia": {
             "taxa": r.taxa_permanencia,
-            **_com_ic(r.taxa_permanencia, r.ic_permanencia),
+            **com_ic(r.taxa_permanencia, r.ic_permanencia),
             "n_base": r.n_avaliavel,
             "n_avaliavel": r.n_avaliavel,
             "n_retidos": r.n_retidos,
@@ -153,7 +141,7 @@ def _recomendado(posicao: int, linha: engine.LinhaMedicamento) -> dict:
                 "n": ra.n,
                 "n_base": ra.n_base,
                 "proporcao": ra.proporcao,
-                **_com_ic(ra.proporcao, ra.ic),
+                **com_ic(ra.proporcao, ra.ic),
                 "mediana_dias_ate_inicio": (
                     float(ra.mediana_dias_ate_inicio)
                     if ra.mediana_dias_ate_inicio is not None else None
@@ -178,43 +166,53 @@ def _sem_dados(linha: engine.LinhaMedicamento) -> dict:
     }
 
 
+def _faixa_ampliada(conn: sqlite3.Connection, tabela: str, codigo: str) -> tuple[str, str]:
+    """(rótulo informado, linhas das faixas adjacentes) — a mesma subconsulta de matching."""
+    faixas = conn.execute(
+        f"SELECT * FROM {tabela} WHERE ordem BETWEEN "
+        f" (SELECT ordem - 1 FROM {tabela} WHERE codigo = ?) AND "
+        f" (SELECT ordem + 1 FROM {tabela} WHERE codigo = ?) ORDER BY ordem",
+        (codigo, codigo),
+    ).fetchall()
+    informado = next(f["rotulo"] for f in faixas if f["codigo"] == codigo)
+    return informado, faixas
+
+
 def _substituicoes(conn: sqlite3.Connection, alvo: PerfilAlvo, nivel: Nivel) -> list[dict]:
     """O que o degrau deixou de exigir e o que usou no lugar.
 
-    Espelha matching.construir_consulta degrau a degrau (mesmos limiares de
-    ordem e mesmas subconsultas de faixa adjacente e grupo CID).
+    Espelha matching.construir_consulta critério a critério (mesmas subconsultas
+    de faixa adjacente e grupo CID).
     """
     psiq = alvo.comorbidades_psiquiatricas
     clinicas = tuple(c for c in alvo.comorbidades if c not in psiq)
     itens = []
 
-    if nivel.ordem >= 1:
+    if nivel.relaxa(matching.COMORBIDADES_CLINICAS):
         itens.append({"criterio": "comorbidades clínicas",
                       "valor_informado": ", ".join(clinicas) or "nenhuma",
                       "valor_usado": "não filtradas"})
-    if nivel.ordem >= 2:
+    if nivel.relaxa(matching.COMORBIDADES_PSIQUIATRICAS):
         itens.append({"criterio": "comorbidades psiquiátricas",
                       "valor_informado": ", ".join(psiq) or "nenhuma",
                       "valor_usado": "não filtradas"})
-    if nivel.ordem >= 3:
-        faixas = conn.execute(
-            "SELECT codigo, rotulo, idade_min, idade_max, ordem FROM faixa_etaria WHERE ordem BETWEEN "
-            " (SELECT ordem - 1 FROM faixa_etaria WHERE codigo = ?) AND "
-            " (SELECT ordem + 1 FROM faixa_etaria WHERE codigo = ?) ORDER BY ordem",
-            (alvo.faixa_etaria_cod, alvo.faixa_etaria_cod),
-        ).fetchall()
+    if alvo.faixa_imc_cod and nivel.relaxa(matching.FAIXA_IMC_EXATA):
+        informado, faixas = _faixa_ampliada(conn, "faixa_imc", alvo.faixa_imc_cod)
+        itens.append({"criterio": "faixa de IMC", "valor_informado": informado,
+                      "valor_usado": " a ".join(dict.fromkeys([faixas[0]["rotulo"], faixas[-1]["rotulo"]]))})
+    if nivel.relaxa(matching.FAIXA_ETARIA_EXATA):
+        informado, faixas = _faixa_ampliada(conn, "faixa_etaria", alvo.faixa_etaria_cod)
         ultima_ordem = conn.execute("SELECT MAX(ordem) FROM faixa_etaria").fetchone()[0]
         if faixas[-1]["ordem"] == ultima_ordem:
             usado = f"{faixas[0]['idade_min']} anos ou mais"
         else:
             usado = f"{faixas[0]['idade_min']} a {faixas[-1]['idade_max']} anos"
-        informado = next(f["rotulo"] for f in faixas if f["codigo"] == alvo.faixa_etaria_cod)
         itens.append({"criterio": "faixa etária", "valor_informado": informado,
                       "valor_usado": usado})
-    if nivel.ordem >= 4:
+    if nivel.relaxa(matching.SEXO):
         itens.append({"criterio": "sexo", "valor_informado": rotulos.SEXO[alvo.sexo].lower(),
                       "valor_usado": "todos"})
-    if nivel.ordem >= 5:
+    if nivel.relaxa(matching.CID_EXATO):
         grupo = conn.execute("SELECT grupo FROM cid10 WHERE codigo = ?",
                              (alvo.cid10_principal,)).fetchone()["grupo"]
         codigos = [
@@ -319,6 +317,10 @@ def base():
 def analisar(entrada: AnaliseEntrada):
     with _conectar() as conn:
         erros = validar_perfil(conn, entrada)
+        if entrada.faixa_imc_cod is not None and conn.execute(
+            "SELECT 1 FROM faixa_imc WHERE codigo = ?", (entrada.faixa_imc_cod,)
+        ).fetchone() is None:
+            erros.append({"campo": "faixa_imc_cod", "mensagem": "Faixa de IMC não encontrada no catálogo."})
         if erros:
             raise ErroValidacao(erros)
 
@@ -328,11 +330,16 @@ def analisar(entrada: AnaliseEntrada):
             faixa_etaria_cod=entrada.faixa_etaria_cod,
             cid10_principal=entrada.cid10_principal,
             comorbidades=tuple(entrada.comorbidades),
+            faixa_imc_cod=entrada.faixa_imc_cod,
         )
         rec = engine.recomendar(conn, alvo, n_minimo=entrada.n_minimo,
                                 horizonte_dias=entrada.horizonte_dias)
         degraus = engine.diagnosticar_escada(conn, alvo, horizonte_dias=entrada.horizonte_dias)
-        substituicoes = {n.ordem: _substituicoes(conn, alvo, n) for n in NIVEIS}
+        sql_coorte, params_coorte = construir_consulta(alvo, rec.nivel)
+        chaves_coorte = {r[0] for r in conn.execute(
+            f"SELECT chave_pseudonima FROM paciente_perfil WHERE id IN ({sql_coorte})", params_coorte)}
+        frequencia = paineis.frequencia_prescricao(paineis.Base(conn), chaves_coorte, entrada.n_minimo)
+        substituicoes = {n.ordem: _substituicoes(conn, alvo, n) for n in niveis_para(alvo)}
         n_perfis_base = conn.execute(
             "SELECT COUNT(*) FROM paciente_perfil WHERE hospital_id = ?", (HOSPITAL_ID,)
         ).fetchone()[0]
@@ -346,6 +353,7 @@ def analisar(entrada: AnaliseEntrada):
             "faixa_etaria_cod": entrada.faixa_etaria_cod,
             "cid10_principal": entrada.cid10_principal,
             "comorbidades": entrada.comorbidades,
+            "faixa_imc_cod": entrada.faixa_imc_cod,
         },
         "horizonte_dias": rec.horizonte_dias,
         "n_minimo": rec.n_minimo,
@@ -365,6 +373,7 @@ def analisar(entrada: AnaliseEntrada):
         ],
         "avisos": _avisos(rec, total_censurado),
         "total_censurado": total_censurado,
+        "frequencia_prescricao": frequencia,
         "proveniencia": {
             "sintetico": DADOS_SINTETICOS,
             "n_perfis_base": n_perfis_base,
@@ -382,6 +391,105 @@ def registrar_caso(caso: CasoEntrada):
         if erros:
             raise ErroValidacao(erros)
         return {**registrar(conn, caso), "alertas": alertas}
+
+
+# =============================================================================
+# Painéis (Data Mart)
+# =============================================================================
+def _filtros(
+    sexo: Literal[tuple(rotulos.SEXO)] | None = None,
+    faixa_etaria_cod: str | None = None,
+    diagnostico: str | None = Query(default=None, description="código CID-10 ou grupo, ex. F30-F39"),
+    faixa_imc_cod: str | None = None,
+    tabagista: bool | None = None,
+    comorbidades: int | None = Query(default=None, ge=0, le=3, description="3 = 3 ou mais"),
+) -> paineis.Filtros:
+    return paineis.Filtros(sexo, faixa_etaria_cod, diagnostico, faixa_imc_cod, tabagista, comorbidades)
+
+
+def _validar_filtros(conn: sqlite3.Connection, f: paineis.Filtros) -> None:
+    erros = []
+    if f.faixa_etaria_cod and conn.execute("SELECT 1 FROM faixa_etaria WHERE codigo = ?", (f.faixa_etaria_cod,)).fetchone() is None:
+        erros.append({"campo": "faixa_etaria_cod", "mensagem": "Faixa etária não encontrada no catálogo."})
+    if f.faixa_imc_cod and conn.execute("SELECT 1 FROM faixa_imc WHERE codigo = ?", (f.faixa_imc_cod,)).fetchone() is None:
+        erros.append({"campo": "faixa_imc_cod", "mensagem": "Faixa de IMC não encontrada no catálogo."})
+    if f.diagnostico and conn.execute("SELECT 1 FROM cid10 WHERE codigo = ? OR grupo = ?",
+                                      (f.diagnostico, f.diagnostico)).fetchone() is None:
+        erros.append({"campo": "diagnostico", "mensagem": "Código ou grupo CID-10 não encontrado no catálogo."})
+    if erros:
+        raise ErroValidacao(erros)
+
+
+Horizonte = Query(default=HORIZONTE_PADRAO_DIAS, ge=HORIZONTE_MIN_DIAS, le=HORIZONTE_MAX_DIAS)
+NMinimo = Query(default=engine.N_MINIMO_PADRAO, ge=N_MINIMO_MIN, le=N_MINIMO_MAX)
+
+
+def _medicamento_existe(conn: sqlite3.Connection, medicamento_id: int) -> None:
+    if conn.execute("SELECT 1 FROM medicamento WHERE id = ?", (medicamento_id,)).fetchone() is None:
+        raise HTTPException(404, "Medicamento não encontrado no catálogo.")
+
+
+@router.get("/visao-geral")
+def visao_geral(filtros: paineis.Filtros = Depends(_filtros), horizonte_dias: int = Horizonte,
+                n_minimo: int = NMinimo, dividir_por: Literal[paineis.DIVISOES] = "faixa"):
+    with _conectar() as conn:
+        _validar_filtros(conn, filtros)
+        return paineis.visao_geral(paineis.Base(conn), filtros, horizonte_dias, n_minimo, dividir_por)
+
+
+@router.get("/pacientes")
+def listar_pacientes(q: str | None = Query(default=None, max_length=60),
+                     sexo: Literal[tuple(rotulos.SEXO)] | None = None, faixa_etaria_cod: str | None = None,
+                     grupo: str | None = None, pagina: int = Query(default=1, ge=1),
+                     por_pagina: int = Query(default=20, ge=1, le=100)):
+    with _conectar() as conn:
+        return paineis.pacientes(paineis.Base(conn), q, sexo, faixa_etaria_cod, grupo, pagina, por_pagina)
+
+
+@router.get("/pacientes/{chave}")
+def ficha_paciente(chave: str):
+    with _conectar() as conn:
+        ficha = paineis.paciente(paineis.Base(conn), chave)
+    if ficha is None:
+        raise HTTPException(404, "Nenhum atendimento registrado para esta chave.")
+    return ficha
+
+
+@router.get("/medicamentos/{medicamento_id}/ficha")
+def ficha_medicamento(medicamento_id: int, filtros: paineis.Filtros = Depends(_filtros),
+                      horizonte_dias: int = Horizonte, n_minimo: int = NMinimo):
+    with _conectar() as conn:
+        _medicamento_existe(conn, medicamento_id)
+        _validar_filtros(conn, filtros)
+        return paineis.ficha_medicamento(paineis.Base(conn), medicamento_id, filtros, horizonte_dias, n_minimo)
+
+
+@router.get("/reacoes/resumo")
+def resumo_reacoes(filtros: paineis.Filtros = Depends(_filtros), medicamento_id: int | None = None,
+                   linha: Literal[tuple(c for c, _ in paineis.LINHAS)] | None = None, n_minimo: int = NMinimo):
+    with _conectar() as conn:
+        if medicamento_id is not None:
+            _medicamento_existe(conn, medicamento_id)
+        _validar_filtros(conn, filtros)
+        return paineis.reacoes_resumo(paineis.Base(conn), filtros, medicamento_id, linha, n_minimo)
+
+
+@router.get("/reacoes/peso-por-imc")
+def peso_por_imc(medicamento_id: int, filtros: paineis.Filtros = Depends(_filtros), n_minimo: int = NMinimo):
+    with _conectar() as conn:
+        _medicamento_existe(conn, medicamento_id)
+        _validar_filtros(conn, filtros)
+        ids_termo = {r["termo"]: r["id"] for r in conn.execute("SELECT id, termo FROM reacao_adversa")}
+        return paineis.peso_por_imc(paineis.Base(conn), medicamento_id, filtros, n_minimo, ids_termo)
+
+
+@router.post("/atendimentos", status_code=201)
+def registrar_atendimento(entrada: atendimento.AtendimentoEntrada):
+    with _conectar() as conn:
+        erros = atendimento.validar(conn, entrada, date.today())
+        if erros:
+            raise ErroValidacao(erros)
+        return atendimento.registrar(conn, entrada)
 
 
 @router.get("/casos")

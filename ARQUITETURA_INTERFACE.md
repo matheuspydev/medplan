@@ -13,7 +13,7 @@ validado clinicamente — isso depende da médica responsável (ver seção 9).
 | # | Decisão | Consequência |
 |---|---|---|
 | 1 | React + TypeScript já na fase 0 (decisão do usuário) | Contraria a seção 4 do `CLAUDE.md`, que deixava React para depois. O `app.py` Streamlit continua intacto como tela da validação clínica. **O `CLAUDE.md` ainda não foi atualizado** — decisão pendente do usuário. |
-| 2 | O motor não foi tocado | `engine.py`, `matching.py`, `stats.py` e `synth.py` estão iguais. A API só serializa o que o motor calcula. |
+| 2 | O motor mudou só no aprovado | A escada ganhou o degrau de faixa de IMC, que só existe quando a faixa é informada; sem IMC a consulta é idêntica à anterior (`tests/test_matching_regressao.py` congela a versão antiga e compara degrau a degrau). A API só serializa o que o motor e os painéis calculam. |
 | 3 | O backend é a autoridade dos números | Ordem, coorte, censura, IC e **arredondamento** saem do Python. O front nunca recalcula nem arredonda — então os casos-ouro validados no motor valem para o que aparece na tela. |
 | 4 | Duas telas de trabalho | **Consulta** (perfil → análise de coorte) e **Registro de caso** (perfil + tratamentos + desfecho + reações). Mais a **Metodologia**, que explica o método. |
 | 5 | Só dados sintéticos | Base com 6.000 perfis gerados. SQLite sem RLS nem audit log: casos registrados na tela têm de ser fictícios, e a tela diz isso. |
@@ -49,8 +49,34 @@ Dois modos de rodar (comandos no `README.md`):
 | Arquivo | Responsabilidade |
 |---|---|
 | `medplan/api.py` | Rotas, serialização da análise, substituições por nível, tratamento de erro 422, SPA |
-| `medplan/registro.py` | Modelos de entrada fechados (`extra="forbid"`), regras de consistência, gravação transacional, chave pseudônima |
+| `medplan/registro.py` | Registro de caso (perfil + T1..T10): entrada fechada, consistência, gravação transacional |
+| `medplan/atendimento.py` | Registro de atendimento (grão do Data Mart): grava o fato e mantém o modelo do motor em dia |
+| `medplan/datamart.py` | Data Mart no protótipo: carga das dimensões, chaves substitutas, leitura dos fatos em tratamentos |
+| `medplan/paineis.py` | Visão geral, pacientes, ficha do medicamento, reações e frequência de prescrição, a partir dos fatos |
 | `medplan/rotulos.py` | Rótulos pt-BR dos enums do schema (vocabulário de interface, não dado clínico) |
+
+**Data Mart.** `db/sqlite/datamart.sql` é o `db/postgres/010_datamart.sql` com os tipos do
+SQLite: as mesmas dimensões e os dois fatos (grão = atendimento). As dimensões vêm dos
+catálogos do protótipo; os fatos, do registro de atendimento e do gerador sintético. Cada
+atendimento também atualiza o perfil, a prescrição e o desfecho que o motor da Consulta lê.
+Convenções do protótipo, pendentes de confirmação com a médica: `tabagista` = tabagismo
+"atual"; `dim_paciente.sexo` guarda a inicial dos quatro valores do banco (F, M, I, N).
+
+**Endpoints de leitura dos painéis** (todos aceitam os filtros globais `sexo`,
+`faixa_etaria_cod`, `diagnostico` (código ou grupo), `faixa_imc_cod`, `tabagista`,
+`comorbidades` (0 a 3, 3 = "3 ou mais")):
+
+| Rota | O que devolve |
+|---|---|
+| `GET /visao-geral` | contagens, diagnósticos e medicamentos mais frequentes, desfecho com IC, motivos, classe prescrita por grupo (`dividir_por`), pacientes recentes |
+| `GET /pacientes`, `GET /pacientes/{chave}` | lista com busca sem acento e paginação; ficha com atendimentos, tratamentos e reações |
+| `POST /atendimentos` | registra uma consulta (chave da origem, perfil do dia, medicamento, status, reações) |
+| `GET /medicamentos/{id}/ficha` | permanência, contabilidade, curva de Kaplan-Meier com IC, quem recebe, reações, permanência por linha |
+| `GET /reacoes/resumo` | termos por SOC, gravidade, descontinuação por gravidade, dias até o início, reação × medicamento |
+| `GET /reacoes/peso-por-imc` | ganho e perda de peso por faixa de IMC no início do tratamento |
+
+Toda proporção desses painéis sai de `stats.proporcao`: `n` (casos), `n_base` (denominador),
+percentual e IC já arredondados; abaixo do n mínimo, só `n_base` e `suficiente: false`.
 
 O que a API **acrescenta** ao motor, e por quê:
 
@@ -65,6 +91,7 @@ O que a API **acrescenta** ao motor, e por quê:
    `construir_consulta` e testadas contra ela. Quando o grupo CID tem um código só, a API diz
    que o nível 5 não ampliou nada.
 4. **Proveniência** (`sintetico`, tamanho da base, hora do cálculo).
+5. **Frequência de prescrição** na coorte (classe e medicamento, com IC), a partir dos atendimentos.
 
 Registro de caso:
 

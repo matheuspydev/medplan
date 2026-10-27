@@ -125,4 +125,7 @@ INSERT INTO reacao_adversa (termo, codigo_meddra_pt, soc, gravidade_padrao) VALU
     ('Exantema',                        NULL, 'Distúrbios da pele e do tecido subcutâneo',      'moderada'),
     ('Síndrome de Stevens-Johnson',     NULL, 'Distúrbios da pele e do tecido subcutâneo',      'grave'),
     ('Sudorese',                        NULL, 'Distúrbios da pele e do tecido subcutâneo',      'leve'),
-    ('Hipotensão ortostática',          NULL, 'Distúrbios vasculares',                          'moderada');
+    ('Hipotensão ortostática',          NULL, 'Distúrbios vasculares',                          'moderada'),
+    -- Par de "Ganho de peso" para o painel de peso por IMC. No fim da lista para não mudar
+    -- os ids anteriores; gravidade padrão espelhada de "Ganho de peso", a confirmar com a médica.
+    ('Perda de peso',                   NULL, 'Exames complementares',                          'moderada');

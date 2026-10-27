@@ -27,11 +27,22 @@ class PerfilAlvo:
     faixa_etaria_cod: str
     cid10_principal: str
     comorbidades: tuple[str, ...] = ()
+    # Opcional: sem faixa de IMC, a escada é a de sempre (NIVEIS), sem o degrau de IMC.
+    faixa_imc_cod: str | None = None
 
     @property
     def comorbidades_psiquiatricas(self) -> tuple[str, ...]:
         # Todo o capítulo F da CID-10 é transtorno mental e comportamental.
         return tuple(c for c in self.comorbidades if c.upper().startswith("F"))
+
+
+# Critérios que um degrau pode deixar de exigir. O texto aparece para o médico.
+COMORBIDADES_CLINICAS = "comorbidades clínicas"
+COMORBIDADES_PSIQUIATRICAS = "comorbidades psiquiátricas"
+FAIXA_IMC_EXATA = "faixa de IMC exata"
+FAIXA_ETARIA_EXATA = "faixa etária exata"
+SEXO = "sexo"
+CID_EXATO = "código CID-10 exato"
 
 
 @dataclass(frozen=True)
@@ -42,26 +53,54 @@ class Nivel:
     rotulo: str
     criterios_relaxados: tuple[str, ...] = field(default=())
 
+    def relaxa(self, criterio: str) -> bool:
+        return criterio in self.criterios_relaxados
 
-NIVEIS: tuple[Nivel, ...] = (
-    Nivel(0, "Perfil completo"),
-    Nivel(1, "Comorbidades clínicas ignoradas",
-          ("comorbidades clínicas",)),
-    Nivel(2, "Comorbidades ignoradas",
-          ("comorbidades clínicas", "comorbidades psiquiátricas")),
-    Nivel(3, "Faixa etária ampliada para as adjacentes",
-          ("comorbidades clínicas", "comorbidades psiquiátricas", "faixa etária exata")),
-    Nivel(4, "Sexo ignorado",
-          ("comorbidades clínicas", "comorbidades psiquiátricas", "faixa etária exata",
-           "sexo")),
-    Nivel(5, "Grupo diagnóstico em vez do código exato",
-          ("comorbidades clínicas", "comorbidades psiquiátricas", "faixa etária exata",
-           "sexo", "código CID-10 exato")),
-)
+
+def _escada(com_imc: bool) -> tuple[Nivel, ...]:
+    """Monta a escada. Cada degrau ignora tudo o que o anterior ignorava e mais um critério.
+
+    Com faixa de IMC informada, ela é exigida igual até as comorbidades caírem e,
+    no degrau seguinte, passa a aceitar as faixas adjacentes (antes da faixa etária).
+    """
+    degraus = [
+        ("Perfil completo", ()),
+        ("Comorbidades clínicas ignoradas", (COMORBIDADES_CLINICAS,)),
+        ("Comorbidades ignoradas", (COMORBIDADES_PSIQUIATRICAS,)),
+    ]
+    if com_imc:
+        degraus.append(("Faixa de IMC ampliada para as adjacentes", (FAIXA_IMC_EXATA,)))
+    degraus += [
+        ("Faixa etária ampliada para as adjacentes", (FAIXA_ETARIA_EXATA,)),
+        ("Sexo ignorado", (SEXO,)),
+        ("Grupo diagnóstico em vez do código exato", (CID_EXATO,)),
+    ]
+    niveis, acumulado = [], ()
+    for ordem, (rotulo, novos) in enumerate(degraus):
+        acumulado += novos
+        niveis.append(Nivel(ordem, rotulo, acumulado))
+    return tuple(niveis)
+
+
+NIVEIS: tuple[Nivel, ...] = _escada(com_imc=False)
+NIVEIS_COM_IMC: tuple[Nivel, ...] = _escada(com_imc=True)
+
+
+def niveis_para(alvo: PerfilAlvo) -> tuple[Nivel, ...]:
+    """A escada que vale para este perfil: com o degrau de IMC só se a faixa foi informada."""
+    return NIVEIS_COM_IMC if alvo.faixa_imc_cod else NIVEIS
 
 
 def _placeholders(n: int) -> str:
     return ", ".join("?" for _ in range(n))
+
+
+def _faixa_adjacente(tabela: str) -> str:
+    return (
+        f"IN (SELECT codigo FROM {tabela} WHERE ordem BETWEEN "
+        f" (SELECT ordem - 1 FROM {tabela} WHERE codigo = ?) AND "
+        f" (SELECT ordem + 1 FROM {tabela} WHERE codigo = ?))"
+    )
 
 
 def construir_consulta(alvo: PerfilAlvo, nivel: Nivel) -> tuple[str, list]:
@@ -73,7 +112,7 @@ def construir_consulta(alvo: PerfilAlvo, nivel: Nivel) -> tuple[str, list]:
     params: list = [alvo.hospital_id]
 
     # --- diagnóstico principal -------------------------------------------------
-    if nivel.ordem >= 5:
+    if nivel.relaxa(CID_EXATO):
         where.append(
             "p.cid10_principal IN "
             "(SELECT codigo FROM cid10 WHERE grupo = "
@@ -85,20 +124,24 @@ def construir_consulta(alvo: PerfilAlvo, nivel: Nivel) -> tuple[str, list]:
         params.append(alvo.cid10_principal)
 
     # --- faixa etária ----------------------------------------------------------
-    if nivel.ordem >= 3:
-        where.append(
-            "p.faixa_etaria_cod IN "
-            "(SELECT codigo FROM faixa_etaria WHERE ordem BETWEEN "
-            " (SELECT ordem - 1 FROM faixa_etaria WHERE codigo = ?) AND "
-            " (SELECT ordem + 1 FROM faixa_etaria WHERE codigo = ?))"
-        )
+    if nivel.relaxa(FAIXA_ETARIA_EXATA):
+        where.append("p.faixa_etaria_cod " + _faixa_adjacente("faixa_etaria"))
         params.extend([alvo.faixa_etaria_cod, alvo.faixa_etaria_cod])
     else:
         where.append("p.faixa_etaria_cod = ?")
         params.append(alvo.faixa_etaria_cod)
 
+    # --- faixa de IMC (só quando informada) ----------------------------------------
+    if alvo.faixa_imc_cod:
+        if nivel.relaxa(FAIXA_IMC_EXATA):
+            where.append("p.faixa_imc_cod " + _faixa_adjacente("faixa_imc"))
+            params.extend([alvo.faixa_imc_cod, alvo.faixa_imc_cod])
+        else:
+            where.append("p.faixa_imc_cod = ?")
+            params.append(alvo.faixa_imc_cod)
+
     # --- sexo ------------------------------------------------------------------
-    if nivel.ordem < 4:
+    if not nivel.relaxa(SEXO):
         where.append("p.sexo = ?")
         params.append(alvo.sexo)
 
@@ -106,7 +149,7 @@ def construir_consulta(alvo: PerfilAlvo, nivel: Nivel) -> tuple[str, list]:
     # Correspondência de conjunto exato, não "contém". Um alvo sem comorbidade
     # nenhuma tem que casar com perfis igualmente sem comorbidade — senão o
     # nível 0 não restringe nada e a escada perde o degrau mais estrito.
-    if nivel.ordem == 0:
+    if not nivel.relaxa(COMORBIDADES_CLINICAS):
         alvos = alvo.comorbidades
         where.append(
             "(SELECT COUNT(*) FROM perfil_comorbidade pc "
@@ -122,7 +165,7 @@ def construir_consulta(alvo: PerfilAlvo, nivel: Nivel) -> tuple[str, list]:
             params.extend(alvos)
             params.append(len(alvos))
 
-    elif nivel.ordem == 1:
+    elif not nivel.relaxa(COMORBIDADES_PSIQUIATRICAS):
         psiq = alvo.comorbidades_psiquiatricas
         where.append(
             "(SELECT COUNT(*) FROM perfil_comorbidade pc "
@@ -138,7 +181,7 @@ def construir_consulta(alvo: PerfilAlvo, nivel: Nivel) -> tuple[str, list]:
             params.extend(psiq)
             params.append(len(psiq))
 
-    # níveis >= 2 não filtram por comorbidade
+    # depois disso, comorbidades não filtram
 
     sql = "SELECT p.id FROM paciente_perfil p WHERE " + " AND ".join(where)
     return sql, params

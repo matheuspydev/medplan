@@ -38,8 +38,9 @@ Use 6000 perfis: com o padrão de 700, quase todo perfil cai em "dados insuficie
 
 ## Interface web
 
-React + TypeScript (Vite) sobre uma API FastAPI que reusa o motor. Duas telas:
-consulta (perfil -> coorte) e registro de caso (alimenta a base). Só dados sintéticos.
+React + TypeScript (Vite) sobre uma API FastAPI que reusa o motor e lê o Data Mart
+(grão = atendimento) para os painéis. Só dados sintéticos. O banco precisa ser recriado
+depois de atualizar o código, porque as tabelas do Data Mart são novas.
 
 ```bash
 cd web && npm install && cd ..                              # uma vez
