@@ -210,3 +210,20 @@
   color: var(--color-text-secondary);
   font-size: var(--text-caption-size);
 }
+
+/* ---- adicionar medicamento ------------------------------------------------------- */
+.adicionar-medicamento {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-4);
+}
+.adicionar-medicamento__rotulo {
+  font-size: var(--text-table-size);
+  font-weight: var(--font-weight-semibold);
+}
+.adicionar-medicamento__acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}

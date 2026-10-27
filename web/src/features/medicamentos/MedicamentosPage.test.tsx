@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FichaMedicamento, VisaoGeral } from '../../api/types';
 import { insuficiente, montarPainel, proporcao, REFERENCIAS_PAINEIS } from '../../lib/teste-paineis';
@@ -56,6 +56,32 @@ describe('Medicamentos', () => {
     expect(screen.getByText('Curva não exibida: menos de 20 tratamentos no recorte.')).toBeTruthy();
     expect(screen.getByRole('img', { name: 'dados insuficientes; n igual a 9' })).toBeTruthy();
     expect(screen.getByText('3 tratamentos sem linha informada ficam fora desta divisão.')).toBeTruthy();
+  });
+});
+
+describe('Adicionar medicamento', () => {
+  it('valida antes de enviar, manda o corpo e recarrega o catálogo', async () => {
+    const novo = { id: 9, principio_ativo: 'fármaco c', codigo_atc: 'Z99ZZ09', classe_terapeutica: 'Classe sintética' };
+    const pedidos = montarPainel(<MedicamentosPage />, { '/paineis/visao-geral': volume, '/medicamentos': novo, '/paineis/medicamento': ficha(farmacoA, false) });
+    fireEvent.click(await screen.findByRole('button', { name: 'Adicionar medicamento' }));
+    expect(screen.getByText('Índice ATC/DDD da OMS')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar à lista' }));
+    expect(screen.getByText('Informe o código ATC completo (7 caracteres).')).toBeTruthy();
+    expect(pedidos.some((p) => p.caminho === '/medicamentos')).toBe(false);
+
+    fireEvent.change(screen.getByLabelText(/Código ATC/), { target: { value: 'z99zz09' } });
+    fireEvent.change(screen.getByLabelText(/Princípio ativo/), { target: { value: 'fármaco c' } });
+    fireEvent.change(screen.getByLabelText(/Classe terapêutica/), { target: { value: 'Classe sintética' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Adicionar à lista' })));
+
+    expect(pedidos.find((p) => p.caminho === '/medicamentos')?.corpo).toEqual({
+      codigo_atc: 'Z99ZZ09',
+      principio_ativo: 'fármaco c',
+      classe_terapeutica: 'Classe sintética',
+    });
+    expect(screen.getByText(/Fármaco c adicionado à lista de referência/)).toBeTruthy();
+    expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/referencias'))).toHaveLength(2);
   });
 });
 

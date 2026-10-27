@@ -289,22 +289,6 @@
   min-width: 0;
 }
 
-.tela-em-construcao {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: var(--space-8);
-}
-.tela-em-construcao h1 {
-  font-size: 2rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-}
-.tela-em-construcao p {
-  color: var(--color-text-secondary);
-}
-
 /* Rodapé: letras miúdas e o link para a Metodologia. */
 .rodape {
   display: flex;

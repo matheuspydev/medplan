@@ -473,3 +473,79 @@ export interface AtendimentoCriado {
   n_atendimentos_paciente: number;
   primeiro_atendimento: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Qualidade dos dados: POST /cargas, GET /qualidade, GET /qualidade/cargas/{id}
+// ---------------------------------------------------------------------------
+export interface ArquivoCsv {
+  nome: string;
+  /** UTF-8, separador ponto e vírgula, uma linha de cabeçalho. */
+  conteudo: string;
+}
+
+export interface CargaEntrada {
+  atendimentos: ArquivoCsv;
+  reacoes?: ArquivoCsv;
+  linhas_informadas?: number;
+}
+
+export type MotivoRejeicao = 'incompleto' | 'vocabulario' | 'data' | 'dominio' | 'vinculo' | 'duplicado';
+export type SituacaoCarga = 'completa' | 'com_rejeicoes' | 'recusada';
+
+export interface ResumoCarga {
+  id: number;
+  /** ISO com fuso (UTC). */
+  criado_em: string;
+  arquivo_atendimentos: string;
+  arquivo_reacoes: string | null;
+  linhas_informadas: number | null;
+  /** Linhas dos dois arquivos. */
+  lidas: number;
+  aceitas: number;
+  rejeitadas: number;
+  lidas_atendimentos: number;
+  situacao: SituacaoCarga;
+  motivo_recusa: string | null;
+}
+
+export interface RejeicaoCarga {
+  arquivo: 'atendimentos' | 'reacoes';
+  linha: number;
+  campo: string;
+  motivo: MotivoRejeicao;
+  mensagem: string;
+  /** Só na resposta do envio: o valor recusado não é gravado. */
+  valor?: string;
+}
+
+export interface DetalheCarga extends ResumoCarga {
+  motivos: { motivo: MotivoRejeicao; rotulo: string; n: number }[];
+  reconciliacao: {
+    entidade: string;
+    origem: number;
+    banco: number;
+    diferenca: number;
+    rejeitadas: number | null;
+    situacao: 'confere' | 'explicada' | 'a_conferir' | 'nao_processada';
+  }[];
+  /** Até 200, por arquivo e linha. */
+  rejeicoes: RejeicaoCarga[];
+  n_rejeicoes: number;
+}
+
+export interface Qualidade {
+  cargas: ResumoCarga[];
+  n_cargas: number;
+  integridade: { verificacao: string; n: number }[];
+  base: { n_atendimentos: number; n_pacientes: number };
+  motivos: { motivo: MotivoRejeicao; rotulo: string }[];
+}
+
+// ---------------------------------------------------------------------------
+// POST /medicamentos
+// ---------------------------------------------------------------------------
+export interface MedicamentoEntrada {
+  codigo_atc: string;
+  principio_ativo: string;
+  classe_terapeutica: string;
+}

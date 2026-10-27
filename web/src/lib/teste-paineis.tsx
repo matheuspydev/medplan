@@ -41,7 +41,7 @@ type Resposta = unknown | ((corpo: Record<string, unknown>) => unknown);
 
 /**
  * Monta a tela; `respostas` por caminho ("/paineis/reacoes"), fixas ou em função do corpo do pedido.
- * Devolve os corpos enviados, em ordem.
+ * Devolve os pedidos feitos (corpo undefined em GET), em ordem.
  */
 export function montarPainel(tela: ReactElement, respostas: Record<string, Resposta>) {
   const corpos: { caminho: string; corpo: unknown }[] = [];
@@ -50,7 +50,7 @@ export function montarPainel(tela: ReactElement, respostas: Record<string, Respo
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith('/referencias')) return json(REFERENCIAS_PAINEIS);
       const caminho = url.replace('/api/v1', '');
-      const corpo = JSON.parse(String(init?.body));
+      const corpo = init?.body ? JSON.parse(String(init.body)) : undefined;
       corpos.push({ caminho, corpo });
       if (!(caminho in respostas)) return json({ detail: 'não previsto' }, 404);
       const resposta = respostas[caminho];

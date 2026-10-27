@@ -15,7 +15,7 @@ validado clinicamente — isso depende da médica responsável (ver seção 9).
 | 1 | React + TypeScript já na fase 0 (decisão do usuário) | Registrado na seção 4 do `CLAUDE.md`. O `app.py` Streamlit continua intacto como tela da validação clínica. |
 | 2 | O motor mudou só no aprovado | A escada ganhou o degrau de faixa de IMC, que só existe quando a faixa é informada; sem IMC a consulta é idêntica à anterior (`tests/test_matching_regressao.py` congela a versão antiga e compara degrau a degrau). A API só serializa o que o motor e os painéis calculam. |
 | 3 | O backend é a autoridade dos números | Ordem, coorte, censura, IC e **arredondamento** saem do Python. O front nunca recalcula nem arredonda — então os casos-ouro validados no motor valem para o que aparece na tela. |
-| 4 | Telas | **Consulta** (perfil → análise de coorte) e **Registrar atendimento** (uma consulta: perfil do dia, medicamento, status, reações). Painéis sobre o Data Mart: **Visão geral**, **Pacientes** e a ficha de cada um, **Medicamentos**, **Comparar**, **Reações adversas**. Mais a **Metodologia**. **Qualidade dos dados** ainda é tela em construção. |
+| 4 | Telas | **Consulta** (perfil → análise de coorte) e **Registrar atendimento** (uma consulta: perfil do dia, medicamento, status, reações). Painéis sobre o Data Mart: **Visão geral**, **Pacientes** e a ficha de cada um, **Medicamentos**, **Comparar**, **Reações adversas**. **Qualidade dos dados** (carga de CSV, reconciliação, integridade). Mais a **Metodologia**. |
 | 5 | Só dados sintéticos | Base com 6.000 perfis gerados. SQLite sem RLS nem audit log: casos registrados na tela têm de ser fictícios, e a tela diz isso. |
 
 ---
@@ -29,7 +29,7 @@ validado clinicamente — isso depende da médica responsável (ver seção 9).
 │ /pacientes  /paciente     │           │ GET  /api/v1/base            │   │ diagnosticar_     │
 │ /registro  /medicamentos  │ ◀──────── │ POST /api/v1/analises        │   │   escada          │
 │ /medicamentos/comparar    │           │ POST /api/v1/atendimentos    │   │ matching / stats  │
-│ /reacoes  /metodologia    │           │ POST /api/v1/paineis/...     │   │ paineis (fatos)   │
+│ /reacoes  /qualidade      │           │ POST /api/v1/paineis/...     │   │ paineis (fatos)   │
 │ estado da consulta e chave│           │ + web/dist em "/" (SPA)      │   └────────┬─────────┘
 │ do paciente no fragmento  │           │ atendimento.py (gravação)    │            ▼
 └───────────────────────────┘           └──────────────────────────────┘   SQLite sintético
@@ -52,6 +52,8 @@ Dois modos de rodar (comandos no `README.md`):
 | `medplan/registro.py` | Registro de caso (perfil + T1..T10): entrada fechada, consistência, gravação transacional |
 | `medplan/atendimento.py` | Registro de atendimento (grão do Data Mart): grava o fato e mantém o modelo do motor em dia |
 | `medplan/datamart.py` | Data Mart no protótipo: carga das dimensões, chaves substitutas, leitura dos fatos em tratamentos |
+| `medplan/carga.py` | Carga de CSV (atendimentos + reações) pelo mesmo caminho do registro manual; registro das cargas; reconciliação e integridade |
+| `medplan/catalogo.py` | Adicionar medicamento à lista de referência (`medicamento` + `dim_medicamento`) |
 | `medplan/paineis.py` | Visão geral, pacientes, ficha do medicamento, reações e frequência de prescrição, a partir dos fatos |
 | `medplan/rotulos.py` | Rótulos pt-BR dos enums do schema (vocabulário de interface, não dado clínico) |
 
@@ -76,6 +78,24 @@ filtros globais em `filtros`: `sexo`, `faixa_etaria_cod`, `diagnostico` (código
 | `POST /paineis/reacoes` | termos por SOC, gravidade, descontinuação por gravidade, dias até o início, reação × medicamento; aceita `medicamento_id` e `linha` |
 | `POST /paineis/peso-por-imc` | ganho e perda de peso por faixa de IMC no início do tratamento |
 | `POST /atendimentos` | registra uma consulta (chave da origem, perfil do dia, medicamento, status, reações) |
+| `POST /cargas` | carga de `atendimentos.csv` (e `reacoes.csv`, opcional) como texto no corpo; devolve o resultado com o valor recusado, que não é gravado |
+| `GET /qualidade`, `GET /qualidade/cargas/{id}` | histórico de cargas, integridade do Data Mart; motivos, linhas rejeitadas e reconciliação de uma carga |
+| `POST /medicamentos` | adiciona à lista de referência: ATC nível 5 inédito, princípio ativo inédito, classe já cadastrada |
+
+**Carga de CSV** (`medplan/carga.py`, `db/sqlite/carga.sql`):
+
+- UTF-8, `;`, cabeçalho com os nomes do banco. Comorbidades por código CID (separados por
+  vírgula), porque a Consulta compara por código; o Data Mart guarda a quantidade.
+- Coluna fora do modelo ou obrigatória ausente: a carga inteira é recusada. Fora isso, linha a
+  linha, com um motivo por linha: registro incompleto, código fora do vocabulário, data
+  inconsistente, valor fora do domínio, sem atendimento correspondente, já carregado.
+- Reações só se ligam a atendimentos da mesma carga (chave + data). Atendimentos são gravados
+  por data, para a reação a um medicamento anterior encontrar a prescrição.
+- `carga` e `carga_rejeicao` ficam fora do Data Mart e são somente de inclusão (gatilhos
+  recusam UPDATE e DELETE). O valor recusado não é gravado, e o nome do arquivo só aceita
+  letras sem acento, dígitos, ponto, hífen e sublinhado.
+- Reconciliação: origem = o que está nos arquivos; banco = o que entrou, medido nos fatos.
+  "Linhas informadas pela origem" é opcional, digitado no envio.
 
 Toda proporção desses painéis sai de `stats.proporcao`: `n` (casos), `n_base` (denominador),
 percentual e IC já arredondados; abaixo do n mínimo, só `n_base` e `suficiente: false`.
@@ -131,6 +151,7 @@ web/src/
     registro/   Registrar atendimento: modelo (validação, corpo do POST, erros 422), bloco
                 de reação, resumo lateral
     visao-geral/ pacientes/ medicamentos/ reacoes/   painéis sobre o Data Mart
+    qualidade/  envio de CSV, modelo dos arquivos, histórico, reconciliação, integridade
     metodologia/ conteúdo (drawer com Alt+M e página /metodologia), créditos das imagens
   lib/          format (pt-BR), normalizar (busca sem acento), atalhos, useApi (carga com
                 cancelamento), teste-paineis (apoio aos testes das telas de painel)
@@ -236,6 +257,18 @@ semáforo verde/amarelo/vermelho, animação de dados (barras e números aparece
   insuficientes (n=…)" com textura, sem percentual. Contagens absolutas são rotuladas como tal.
 - Medicamentos em ordem alfabética, sem destaque. Comparar começa pelos dois mais usados do
   recorte e diz que a comparação é observacional.
+
+### Qualidade dos dados
+
+- "Enviar CSV": o navegador lê os arquivos e manda o texto (sem upload multipart).
+- Indicadores só com o que o banco sabe: rejeição na última carga, nº de cargas, problemas de
+  integridade, atendimentos na base. Contagens de linhas, sem percentual.
+- Modelo dos dois CSVs com as listas de valores tiradas do catálogo e "Baixar modelo"; o
+  exemplo usa os primeiros itens das listas de referência, só para mostrar o formato.
+- Histórico com aceitas × rejeitadas; ao escolher uma carga, motivos, linhas rejeitadas (com o
+  valor só logo após o envio) e reconciliação.
+- "Adicionar medicamento" fica em Medicamentos: fonte fixa (Índice ATC/DDD da OMS), classe
+  escolhida entre as cadastradas.
 
 ### Registrar atendimento
 

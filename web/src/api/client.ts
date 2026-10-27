@@ -12,6 +12,11 @@ import type {
   AnaliseResposta,
   AtendimentoCriado,
   AtendimentoEntrada,
+  CargaEntrada,
+  DetalheCarga,
+  Medicamento,
+  MedicamentoEntrada,
+  Qualidade,
   DivisaoGrupo,
   FichaMedicamento,
   FichaPaciente,
@@ -148,4 +153,21 @@ export function obterPesoPorImc(
   signal?: AbortSignal,
 ): Promise<PesoPorImc> {
   return requisitar('POST', '/paineis/peso-por-imc', entrada, signal);
+}
+
+// ---- qualidade dos dados ---------------------------------------------------------
+export function enviarCarga(entrada: CargaEntrada, signal?: AbortSignal): Promise<DetalheCarga> {
+  return requisitar('POST', '/cargas', entrada, signal);
+}
+
+export function obterQualidade(signal?: AbortSignal): Promise<Qualidade> {
+  return requisitar('GET', '/qualidade', undefined, signal);
+}
+
+export function obterCarga(id: number, signal?: AbortSignal): Promise<DetalheCarga> {
+  return requisitar('GET', `/qualidade/cargas/${encodeURIComponent(id)}`, undefined, signal);
+}
+
+export function adicionarMedicamento(entrada: MedicamentoEntrada, signal?: AbortSignal): Promise<Medicamento> {
+  return requisitar('POST', '/medicamentos', entrada, signal);
 }

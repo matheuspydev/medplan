@@ -3,15 +3,16 @@
  * ficha do escolhido no recorte dos filtros globais: permanência, contabilidade, curva de
  * permanência, quem recebe, permanência por linha de tratamento e reações.
  */
-import { Columns2 } from 'lucide-react';
+import { Columns2, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { obterFichaMedicamento, obterVisaoGeral } from '../../api/client';
-import { useCatalogo } from '../../api/referencias';
+import { useReferencias } from '../../api/referencias';
 import type { FichaMedicamento } from '../../api/types';
 import { useFiltros } from '../../app/filtros';
 import { LinkRota } from '../../app/rotas';
 import { AvisoNaoPrescreve } from '../../components/AvisoNaoPrescreve';
 import { AvisoViesIndicacao } from '../../components/AvisoViesIndicacao';
+import { Button } from '../../components/Button';
 import { CurvaPermanencia } from '../../components/CurvaPermanencia';
 import { EstadoApi } from '../../components/EstadoApi';
 import { LeituraProporcao } from '../../components/LeituraProporcao';
@@ -20,12 +21,16 @@ import { PainelMedicao } from '../../components/PainelMedicao';
 import { AVISO_VIES_INDICACAO } from '../metodologia/ConteudoMetodologia';
 import { formatarHorizonte, formatarInteiro, inicialMaiuscula, plural } from '../../lib/format';
 import { useApi } from '../../lib/useApi';
+import { AdicionarMedicamento } from './AdicionarMedicamento';
 import './medicamentos.css';
 
 export default function MedicamentosPage() {
-  const catalogo = useCatalogo();
+  const referencias = useReferencias();
+  const catalogo = referencias.status === 'pronto' ? referencias.catalogo : null;
   const { filtros } = useFiltros();
   const [selecionado, setSelecionado] = useState<number | null>(null);
+  const [adicionando, setAdicionando] = useState(false);
+  const [adicionado, setAdicionado] = useState<string | null>(null);
   const chaveFiltros = JSON.stringify(filtros);
   // Contagens da grade: tratamentos por medicamento no recorte (vêm da visão geral, sem cálculo aqui).
   const volume = useApi((signal) => obterVisaoGeral({ filtros, dividir_por: 'faixa' }, signal), chaveFiltros);
@@ -52,8 +57,29 @@ export default function MedicamentosPage() {
             <Columns2 size={16} aria-hidden="true" />
             Comparar
           </LinkRota>
+          <Button variante="secundario" icone={<Plus size={16} />} aria-expanded={adicionando} onClick={() => setAdicionando((a) => !a)}>
+            Adicionar medicamento
+          </Button>
         </div>
       </header>
+
+      {adicionando && catalogo && (
+        <AdicionarMedicamento
+          catalogo={catalogo}
+          onCancelar={() => setAdicionando(false)}
+          onAdicionado={(m) => {
+            setAdicionando(false);
+            setAdicionado(inicialMaiuscula(m.principio_ativo));
+            setSelecionado(m.id);
+            if (referencias.status === 'pronto') referencias.recarregar();
+          }}
+        />
+      )}
+      {adicionado && (
+        <p className="texto-apoio" role="status">
+          {adicionado} adicionado à lista de referência. Passa a ter dados quando aparecer num atendimento.
+        </p>
+      )}
 
       <div className="grade-medicamentos" role="group" aria-label="Escolher medicamento">
         {medicamentos.map((m) => (

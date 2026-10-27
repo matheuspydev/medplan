@@ -80,7 +80,7 @@ export function criarCatalogo(r: Referencias): Catalogo {
 export type EstadoReferencias =
   | { status: 'carregando' }
   | { status: 'erro'; erros: ErroCampo[]; recarregar: () => void }
-  | { status: 'pronto'; catalogo: Catalogo };
+  | { status: 'pronto'; catalogo: Catalogo; recarregar: () => void };
 
 const ContextoReferencias = createContext<EstadoReferencias | null>(null);
 
@@ -105,7 +105,7 @@ export function ReferenciasProvider({ children }: { children: ReactNode }) {
   const catalogo = useMemo(() => (dados ? criarCatalogo(dados) : null), [dados]);
 
   const estado: EstadoReferencias = useMemo(() => {
-    if (catalogo) return { status: 'pronto', catalogo };
+    if (catalogo) return { status: 'pronto', catalogo, recarregar };
     if (erros) return { status: 'erro', erros, recarregar };
     return { status: 'carregando' };
   }, [catalogo, erros, recarregar]);

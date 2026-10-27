@@ -14,6 +14,7 @@ import { MetodologiaProvider } from '../features/metodologia/MetodologiaProvider
 import MetodologiaPage from '../features/metodologia/MetodologiaPage';
 import PacientePage from '../features/pacientes/PacientePage';
 import PacientesPage from '../features/pacientes/PacientesPage';
+import QualidadePage from '../features/qualidade/QualidadePage';
 import ReacoesPage from '../features/reacoes/ReacoesPage';
 import RegistroPage from '../features/registro/RegistroPage';
 import VisaoGeralPage from '../features/visao-geral/VisaoGeralPage';
@@ -23,14 +24,13 @@ import { BuscaRapida } from './BuscaRapida';
 import { FiltrosProvider } from './filtros';
 import { LinkRota, ROTAS, useRota, type Rota } from './rotas';
 import { Sidebar } from './Sidebar';
-import { TelaEmConstrucao } from './TelaEmConstrucao';
 import './App.css';
 
 /** Telas em que os filtros globais valem (na Consulta, pré-preenchem o perfil). */
 const ROTAS_COM_FILTROS: Rota[] = ['/visao-geral', '/consulta', '/medicamentos', '/medicamentos/comparar', '/reacoes'];
 
-/** Tela de cada rota; as que ainda não existem mostram <TelaEmConstrucao>. */
-const TELAS: Partial<Record<Rota, ComponentType>> = {
+/** Tela de cada rota. */
+const TELAS: Record<Rota, ComponentType> = {
   '/visao-geral': VisaoGeralPage,
   '/consulta': ConsultaPage,
   '/pacientes': PacientesPage,
@@ -39,6 +39,7 @@ const TELAS: Partial<Record<Rota, ComponentType>> = {
   '/medicamentos': MedicamentosPage,
   '/medicamentos/comparar': CompararPage,
   '/reacoes': ReacoesPage,
+  '/qualidade': QualidadePage,
   '/metodologia': MetodologiaPage,
 };
 
@@ -77,7 +78,7 @@ export function App() {
               <BarraFiltros ativos={ROTAS_COM_FILTROS.includes(rota)} />
             </header>
             <main id="conteudo" className="app-conteudo">
-              {Tela ? <Tela key={rota} /> : <TelaEmConstrucao titulo={nomeTela} />}
+              <Tela key={rota} />
             </main>
             <footer className="rodape">
               <span>

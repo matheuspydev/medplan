@@ -84,9 +84,11 @@ medplan/
   atendimento.py registro de atendimento: o grão do Data Mart
   datamart.py    Data Mart no protótipo: dimensões, chaves substitutas, leitura dos fatos
   paineis.py     painéis (visão geral, pacientes, medicamentos, reações) a partir dos fatos
+  carga.py       carga de CSV, registro das cargas, reconciliação e integridade
+  catalogo.py    adicionar medicamento à lista de referência
   rotulos.py     rótulos pt-BR dos enums do schema, para a interface
 web/             interface React + TypeScript (Vite): visão geral, consulta, pacientes,
-                 registrar atendimento, medicamentos, comparar, reações, metodologia
+                 registrar atendimento, medicamentos, comparar, reações, qualidade, metodologia
 app.py           tela Streamlit
 ```
 

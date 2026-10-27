@@ -24,7 +24,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import Field
 
-from . import atendimento, db, engine, paineis, rotulos
+from . import atendimento, carga, catalogo, db, engine, paineis, rotulos
 from . import matching
 from .matching import Nivel, PerfilAlvo, construir_consulta, niveis_para
 from .registro import (
@@ -530,6 +530,42 @@ def registrar_atendimento(entrada: atendimento.AtendimentoEntrada):
         if erros:
             raise ErroValidacao(erros)
         return atendimento.registrar(conn, entrada)
+
+
+# =============================================================================
+# Qualidade dos dados: cargas de CSV e lista de referência de medicamentos
+# =============================================================================
+@router.post("/cargas", status_code=201)
+def enviar_carga(entrada: carga.CargaEntrada):
+    erros = carga.validar(entrada)
+    if erros:
+        raise ErroValidacao(erros)
+    with _conectar() as conn:
+        return carga.processar(conn, entrada, date.today())
+
+
+@router.get("/qualidade")
+def qualidade():
+    with _conectar() as conn:
+        return carga.qualidade(conn)
+
+
+@router.get("/qualidade/cargas/{carga_id}")
+def detalhe_carga(carga_id: int):
+    with _conectar() as conn:
+        d = carga.detalhe(conn, carga_id)
+    if d is None:
+        raise HTTPException(404, "Carga não encontrada.")
+    return d
+
+
+@router.post("/medicamentos", status_code=201)
+def adicionar_medicamento(entrada: catalogo.MedicamentoEntrada):
+    with _conectar() as conn:
+        erros = catalogo.validar(conn, entrada)
+        if erros:
+            raise ErroValidacao(erros)
+        return catalogo.adicionar(conn, entrada)
 
 
 @router.get("/casos")
