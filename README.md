@@ -14,7 +14,7 @@ o Hospital Mater Dei — Unidade Contorno. Contexto, equipe e prazos em `PROJETO
 - `PROJETO_ACADEMICO.md` — o projeto de extensão da PUC Minas e o que já foi entregue
 
 Requisitos: Python 3.11 ou mais novo (desenvolvido com 3.13) e, para a interface web,
-Node 20 ou mais novo (desenvolvido com 24).
+Node 24 (ou 22.22.2 e mais novo do 22): é o que o jsdom e o Vitest exigem.
 
 ## Rodar
 
