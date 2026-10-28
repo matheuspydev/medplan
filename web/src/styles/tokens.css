@@ -78,6 +78,10 @@
   --color-data-1: #4E5F75;
   --color-data-2: #8796AA;
   --color-data-3: #B9C3D0;
+  /* Séries comparadas (Comparar): uma cor por medicamento, sempre junto do traço. */
+  --color-serie-1: #121720;
+  --color-serie-2: #0F766E;
+  --color-serie-3: #2563EB;
   --color-seq-0: #F0F2F5;
   --color-seq-1: #DCE3EC;
   --color-seq-2: #B7C4D4;
@@ -283,6 +287,9 @@
     --color-data-1: #9AAEC6;
     --color-data-2: #5F728B;
     --color-data-3: #3C4A5C;
+    --color-serie-1: #E8ECF1;
+    --color-serie-2: #2DD4BF;
+    --color-serie-3: #60A5FA;
     --color-seq-0: #1A2029;
     --color-seq-1: #1F2B3A;
     --color-seq-2: #2B3F57;
@@ -361,6 +368,9 @@
     --color-data-1: #9AAEC6;
     --color-data-2: #5F728B;
     --color-data-3: #3C4A5C;
+    --color-serie-1: #E8ECF1;
+    --color-serie-2: #2DD4BF;
+    --color-serie-3: #60A5FA;
     --color-seq-0: #1A2029;
     --color-seq-1: #1F2B3A;
     --color-seq-2: #2B3F57;

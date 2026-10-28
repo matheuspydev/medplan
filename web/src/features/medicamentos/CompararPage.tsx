@@ -21,7 +21,12 @@ import { formatarHorizonte, formatarInteiro, inicialMaiuscula } from '../../lib/
 import { useApi } from '../../lib/useApi';
 import './medicamentos.css';
 
-const TRACOS = ['', '7 5', '2 4'];
+/** Uma cor e um traço por medicamento: grafite contínuo, teal tracejado, azul pontilhado. */
+const SERIES = [
+  { traco: '', cor: 'var(--color-serie-1)' },
+  { traco: '7 5', cor: 'var(--color-serie-2)' },
+  { traco: '2 4', cor: 'var(--color-serie-3)' },
+];
 
 export default function CompararPage() {
   const catalogo = useCatalogo();
@@ -75,7 +80,7 @@ export default function CompararPage() {
             medicamentos={medicamentos}
             atual={id}
             ocupados={sel.filter((_, j) => j !== i)}
-            traco={TRACOS[i]}
+            serie={SERIES[i]}
             onEscolher={(novo) => trocar(i, novo)}
             onRemover={sel.length > 2 ? () => setEscolhidos(sel.filter((_, j) => j !== i)) : undefined}
           />
@@ -104,14 +109,14 @@ function SeletorMedicamento({
   medicamentos,
   atual,
   ocupados,
-  traco,
+  serie,
   onEscolher,
   onRemover,
 }: {
   medicamentos: Medicamento[];
   atual: number;
   ocupados: number[];
-  traco: string;
+  serie: (typeof SERIES)[number];
   onEscolher: (id: number) => void;
   onRemover?: () => void;
 }) {
@@ -132,7 +137,7 @@ function SeletorMedicamento({
   return (
     <div className="seletor-medicamento" ref={raiz} onKeyDown={(e) => e.key === 'Escape' && setAberto(false)}>
       <button type="button" className="seletor-medicamento__botao" aria-haspopup="listbox" aria-expanded={aberto} aria-label={`Trocar ${nome}`} onClick={() => setAberto((a) => !a)}>
-        <AmostraTraco traco={traco} />
+        <AmostraTraco {...serie} />
         <span className="seletor-medicamento__textos">
           <span className="seletor-medicamento__nome">{nome}</span>
           <span className="seletor-medicamento__classe">{med?.classe_terapeutica}</span>
@@ -234,9 +239,11 @@ function Comparacao({ fichas }: { fichas: FichaMedicamento[] }) {
 
       <div className="grade-cartoes">
         <PainelMedicao titulo="Permanência na mesma escala" subtitulo="ponto = estimativa · barra = IC95%">
-          {fichas.map((f) => (
+          {fichas.map((f, i) => (
             <div key={f.medicamento.id} className="linha-leitura">
-              <span>{inicialMaiuscula(f.medicamento.principio_ativo)}</span>
+              <span>
+                <AmostraTraco {...SERIES[i]} /> {inicialMaiuscula(f.medicamento.principio_ativo)}
+              </span>
               <LeituraProporcao p={f.permanencia} nMinimo={nMinimo} nMax={nMax} grafico="tabela" />
             </div>
           ))}
@@ -246,7 +253,7 @@ function Comparacao({ fichas }: { fichas: FichaMedicamento[] }) {
           {fichas.every((f) => f.curva) ? (
             <>
               <CurvaPermanencia
-                series={fichas.map((f, i) => ({ nome: f.medicamento.principio_ativo, pontos: f.curva!.pontos, traco: TRACOS[i] }))}
+                series={fichas.map((f, i) => ({ nome: f.medicamento.principio_ativo, pontos: f.curva!.pontos, ...SERIES[i] }))}
                 ateDias={fichas[0].curva!.ate_dias}
                 horizonteDias={horizonte}
                 rotulo={`Curvas de permanência de ${fichas.map((f) => inicialMaiuscula(f.medicamento.principio_ativo)).join(', ')}. Os valores com n e IC estão na tabela acima.`}
@@ -254,7 +261,7 @@ function Comparacao({ fichas }: { fichas: FichaMedicamento[] }) {
               <p className="comparar__legenda">
                 {fichas.map((f, i) => (
                   <span key={f.medicamento.id}>
-                    <AmostraTraco traco={TRACOS[i]} /> {inicialMaiuscula(f.medicamento.principio_ativo)}
+                    <AmostraTraco {...SERIES[i]} /> {inicialMaiuscula(f.medicamento.principio_ativo)}
                   </span>
                 ))}
               </p>
