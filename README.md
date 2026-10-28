@@ -67,6 +67,19 @@ Testes: os do Python acima, mais `cd web && npm test`.
 
 O `app.py` (Streamlit) continua sendo a tela da validação clínica.
 
+### No ar, sem instalar nada (Render, plano gratuito)
+
+O `render.yaml` descreve o serviço: instala, compila a interface, gera o banco sintético e
+sobe a API servindo o site. Para criar:
+
+1. Entre em render.com com a conta do GitHub que tem acesso a este repositório.
+2. **New → Blueprint**, escolha o repositório e o branch, e confirme o plano **Free**.
+3. Espere o primeiro deploy (alguns minutos). O link fica no topo do serviço.
+
+Limites do plano gratuito: o serviço dorme após 15 minutos sem acesso (o primeiro acesso
+seguinte demora); o disco é temporário, então registros feitos pela tela somem quando ele
+reinicia. Só dados sintéticos: o link é público e o protótipo não tem RLS nem auditoria.
+
 ## Estrutura
 
 ```
