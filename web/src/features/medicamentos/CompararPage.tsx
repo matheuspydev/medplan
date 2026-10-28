@@ -245,22 +245,15 @@ function Comparacao({ fichas }: { fichas: FichaMedicamento[] }) {
           ))}
           <p className="texto-apoio">Intervalos que se sobrepõem indicam que a base não distingue os medicamentos com segurança.</p>
         </PainelMedicao>
-        <PainelMedicao titulo="Permanência ao longo do tempo" subtitulo="Kaplan-Meier, até 26 semanas">
+        <PainelMedicao titulo="Permanência ao longo do tempo" subtitulo="Kaplan-Meier, valor de cada semana">
           {fichas.every((f) => f.curva) ? (
             <>
               <CurvaPermanencia
-                series={fichas.map((f, i) => ({ nome: f.medicamento.principio_ativo, pontos: f.curva!.pontos, ...SERIES[i] }))}
+                series={fichas.map((f, i) => ({ nome: inicialMaiuscula(f.medicamento.principio_ativo), pontos: f.curva!.pontos, ...SERIES[i] }))}
                 ateDias={fichas[0].curva!.ate_dias}
                 horizonteDias={horizonte}
                 rotulo={`Curvas de permanência de ${fichas.map((f) => inicialMaiuscula(f.medicamento.principio_ativo)).join(', ')}. Os valores com n e IC estão na tabela acima.`}
               />
-              <p className="comparar__legenda">
-                {fichas.map((f, i) => (
-                  <span key={f.medicamento.id}>
-                    <AmostraTraco {...SERIES[i]} /> {inicialMaiuscula(f.medicamento.principio_ativo)}
-                  </span>
-                ))}
-              </p>
             </>
           ) : (
             <p className="texto-apoio">Curvas não exibidas: algum medicamento tem menos de {formatarInteiro(nMinimo)} tratamentos no recorte.</p>

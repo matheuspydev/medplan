@@ -202,14 +202,7 @@
   padding-top: 0;
   border-top: 0;
 }
-.comparar__legenda {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  margin-top: 6px;
-  color: var(--color-text-secondary);
-  font-size: var(--text-caption-size);
-}
+
 
 /* ---- adicionar medicamento ------------------------------------------------------- */
 .adicionar-medicamento {
