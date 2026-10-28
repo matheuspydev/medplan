@@ -3,8 +3,7 @@
  * Os pontos vêm prontos da API (stats.kaplan_meier); aqui só se desenha.
  *
  * - Uma série: linha em degraus, faixa do IC95% e traços de censura.
- * - Várias séries (Comparar): só as linhas, cada uma com sua cor e seu traço (o traço garante a
- *   leitura sem depender de cor).
+ * - Várias séries (Comparar): só as linhas, contínuas, uma cor por série, com legenda.
  * - Eixo y fixo 0–100; eixo x em semanas; linha tracejada no horizonte da análise.
  */
 import type { PontoCurva } from '../api/types';
@@ -14,8 +13,6 @@ export interface SerieCurva {
   nome: string;
   pontos: PontoCurva[];
   diasCensura?: number[];
-  /** stroke-dasharray: '' contínuo, '7 5' tracejado, '2 4' pontilhado. */
-  traco?: string;
   /** Cor da série (ex.: 'var(--color-serie-2)'); sem cor, a tinta padrão dos dados. */
   cor?: string;
 }
@@ -82,7 +79,7 @@ export function CurvaPermanencia({ series, ateDias, horizonteDias, rotulo }: { s
         </text>
         {unica && <path className="curva-permanencia__banda" d={faixa(unica.pontos)} />}
         {series.map((s) => (
-          <path key={s.nome} className="curva-permanencia__linha" d={degraus(s.pontos, (p) => p.sobrevida)} strokeDasharray={s.traco || undefined} style={s.cor ? { stroke: s.cor } : undefined} />
+          <path key={s.nome} className="curva-permanencia__linha" d={degraus(s.pontos, (p) => p.sobrevida)} style={s.cor ? { stroke: s.cor } : undefined} />
         ))}
         {unica?.diasCensura && (
           <path
@@ -96,10 +93,10 @@ export function CurvaPermanencia({ series, ateDias, horizonteDias, rotulo }: { s
 }
 
 /** Amostra do traço para legendas (Comparar). */
-export function AmostraTraco({ traco, cor }: { traco?: string; cor?: string }) {
+export function AmostraTraco({ cor }: { cor?: string }) {
   return (
     <svg className="amostra-traco" width="22" height="8" aria-hidden="true">
-      <line x1="0" y1="4" x2="22" y2="4" strokeDasharray={traco || undefined} style={cor ? { stroke: cor } : undefined} />
+      <line x1="2" y1="4" x2="20" y2="4" style={cor ? { stroke: cor } : undefined} />
     </svg>
   );
 }

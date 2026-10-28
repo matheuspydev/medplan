@@ -21,12 +21,8 @@ import { formatarHorizonte, formatarInteiro, inicialMaiuscula } from '../../lib/
 import { useApi } from '../../lib/useApi';
 import './medicamentos.css';
 
-/** Uma cor e um traço por medicamento: grafite contínuo, teal tracejado, azul pontilhado. */
-const SERIES = [
-  { traco: '', cor: 'var(--color-serie-1)' },
-  { traco: '7 5', cor: 'var(--color-serie-2)' },
-  { traco: '2 4', cor: 'var(--color-serie-3)' },
-];
+/** Uma cor por medicamento, linhas contínuas: grafite, teal, azul. */
+const SERIES = [{ cor: 'var(--color-serie-1)' }, { cor: 'var(--color-serie-2)' }, { cor: 'var(--color-serie-3)' }];
 
 export default function CompararPage() {
   const catalogo = useCatalogo();

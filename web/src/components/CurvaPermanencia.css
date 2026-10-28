@@ -26,7 +26,9 @@
 .curva-permanencia__linha {
   fill: none;
   stroke: var(--color-data-point);
-  stroke-width: 2;
+  stroke-width: 2.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
 }
 .curva-permanencia__censura {
   stroke: var(--color-data-point);
@@ -34,5 +36,6 @@
 }
 .amostra-traco line {
   stroke: var(--color-data-point);
-  stroke-width: 2;
+  stroke-width: 3;
+  stroke-linecap: round;
 }
