@@ -1,11 +1,14 @@
 """Cria o banco do protótipo e popula com dados sintéticos.
 
     python -m medplan.bootstrap [--perfis N] [--semente S] [--forcar]
+
+Grava em MEDPLAN_DB, se definida (a mesma variável que a API lê); senão, no banco padrão.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 
 from . import db, synth
 
@@ -17,11 +20,12 @@ def main() -> None:
     p.add_argument("--forcar", action="store_true", help="recria se já existir")
     args = p.parse_args()
 
-    conn = db.criar_banco(sobrescrever=args.forcar)
+    caminho = os.environ.get("MEDPLAN_DB") or db.BANCO_PADRAO
+    conn = db.criar_banco(caminho, sobrescrever=args.forcar)
     contagem = synth.gerar(conn, n_perfis=args.perfis, semente=args.semente)
     conn.close()
 
-    print(f"Banco criado em {db.BANCO_PADRAO}")
+    print(f"Banco criado em {caminho}")
     for chave, valor in contagem.items():
         print(f"  {chave:12} {valor}")
     print("\nDados SINTÉTICOS. Nenhuma conclusão clínica pode sair daqui.")
