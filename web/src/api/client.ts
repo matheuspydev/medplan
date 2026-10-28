@@ -10,10 +10,24 @@
 import type {
   AnaliseEntrada,
   AnaliseResposta,
+  AtendimentoCriado,
+  AtendimentoEntrada,
+  CargaEntrada,
+  DetalheCarga,
+  Medicamento,
+  MedicamentoEntrada,
+  Qualidade,
+  DivisaoGrupo,
+  FichaMedicamento,
+  FichaPaciente,
+  FiltrosGlobais,
+  LinhaTratamento,
+  ListaPacientes,
+  PesoPorImc,
+  ResumoReacoes,
+  Sexo,
+  VisaoGeral,
   BaseResumo,
-  CasoCriado,
-  CasoEntrada,
-  CasoResumo,
   ErroCampo,
   Referencias,
 } from './types';
@@ -97,10 +111,63 @@ export function criarAnalise(entrada: AnaliseEntrada, signal?: AbortSignal): Pro
   return requisitar('POST', '/analises', entrada, signal);
 }
 
-export function registrarCaso(entrada: CasoEntrada, signal?: AbortSignal): Promise<CasoCriado> {
-  return requisitar('POST', '/casos', entrada, signal);
+export function registrarAtendimento(entrada: AtendimentoEntrada, signal?: AbortSignal): Promise<AtendimentoCriado> {
+  return requisitar('POST', '/atendimentos', entrada, signal);
 }
 
-export function listarCasos(limite = 10, signal?: AbortSignal): Promise<CasoResumo[]> {
-  return requisitar('GET', `/casos?limite=${encodeURIComponent(limite)}`, undefined, signal);
+// ---- painéis: POST com corpo (filtros e chave nunca vão na URL) ----------------------
+export function obterVisaoGeral(
+  entrada: { filtros: FiltrosGlobais; dividir_por: DivisaoGrupo; horizonte_dias?: number; n_minimo?: number },
+  signal?: AbortSignal,
+): Promise<VisaoGeral> {
+  return requisitar('POST', '/paineis/visao-geral', entrada, signal);
+}
+
+export function listarPacientes(
+  entrada: { q?: string; sexo?: Sexo; faixa_etaria_cod?: string; grupo?: string; pagina: number; por_pagina?: number },
+  signal?: AbortSignal,
+): Promise<ListaPacientes> {
+  return requisitar('POST', '/paineis/pacientes', entrada, signal);
+}
+
+export function obterPaciente(chave_pseudonima: string, signal?: AbortSignal): Promise<FichaPaciente> {
+  return requisitar('POST', '/paineis/paciente', { chave_pseudonima }, signal);
+}
+
+export function obterFichaMedicamento(
+  entrada: { medicamento_id: number; filtros: FiltrosGlobais; horizonte_dias?: number; n_minimo?: number },
+  signal?: AbortSignal,
+): Promise<FichaMedicamento> {
+  return requisitar('POST', '/paineis/medicamento', entrada, signal);
+}
+
+export function obterResumoReacoes(
+  entrada: { filtros: FiltrosGlobais; medicamento_id?: number; linha?: LinhaTratamento; n_minimo?: number },
+  signal?: AbortSignal,
+): Promise<ResumoReacoes> {
+  return requisitar('POST', '/paineis/reacoes', entrada, signal);
+}
+
+export function obterPesoPorImc(
+  entrada: { medicamento_id: number; filtros: FiltrosGlobais; n_minimo?: number },
+  signal?: AbortSignal,
+): Promise<PesoPorImc> {
+  return requisitar('POST', '/paineis/peso-por-imc', entrada, signal);
+}
+
+// ---- qualidade dos dados ---------------------------------------------------------
+export function enviarCarga(entrada: CargaEntrada, signal?: AbortSignal): Promise<DetalheCarga> {
+  return requisitar('POST', '/cargas', entrada, signal);
+}
+
+export function obterQualidade(signal?: AbortSignal): Promise<Qualidade> {
+  return requisitar('GET', '/qualidade', undefined, signal);
+}
+
+export function obterCarga(id: number, signal?: AbortSignal): Promise<DetalheCarga> {
+  return requisitar('GET', `/qualidade/cargas/${encodeURIComponent(id)}`, undefined, signal);
+}
+
+export function adicionarMedicamento(entrada: MedicamentoEntrada, signal?: AbortSignal): Promise<Medicamento> {
+  return requisitar('POST', '/medicamentos', entrada, signal);
 }

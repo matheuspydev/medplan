@@ -43,12 +43,12 @@ def med_id(conn, principio: str) -> int:
 
 
 def criar_perfil(conn, chave, sexo="feminino", faixa="26_35", dx="F32.1",
-                 comorbidades=()) -> int:
+                 comorbidades=(), imc=None) -> int:
     cur = conn.execute(
         "INSERT INTO paciente_perfil "
-        " (hospital_id, chave_pseudonima, sexo, faixa_etaria_cod, cid10_principal) "
-        " VALUES (?, ?, ?, ?, ?)",
-        (HOSPITAL, chave, sexo, faixa, dx),
+        " (hospital_id, chave_pseudonima, sexo, faixa_etaria_cod, cid10_principal, faixa_imc_cod) "
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (HOSPITAL, chave, sexo, faixa, dx, imc),
     )
     perfil_id = cur.lastrowid
     for cod, tipo in comorbidades:

@@ -37,15 +37,23 @@ function LinhaDesvio({ children }: { children: ReactNode }) {
 }
 
 /** Linhas por campo, a partir das substituições do nível em que o motor parou. */
-function linhasDesvio(leitura: AnaliseResposta | null): Partial<Record<'dx' | 'sexo' | 'faixa' | 'com', string>> {
+function linhasDesvio(leitura: AnaliseResposta | null): Partial<Record<'dx' | 'sexo' | 'faixa' | 'imc' | 'com', string>> {
   if (!leitura) return {};
   const { ordem, substituicoes } = leitura.nivel;
   const prefixo = `ignorado no nível ${ordem} · `;
   const sub = (criterio: string) => substituicoes.find((s) => s.criterio === criterio);
-  const linhas: Partial<Record<'dx' | 'sexo' | 'faixa' | 'com', string>> = {};
+  const linhas: Partial<Record<'dx' | 'sexo' | 'faixa' | 'imc' | 'com', string>> = {};
 
-  if (ordem >= 2) linhas.com = `${prefixo}comorbidades não filtradas`;
-  else if (ordem === 1) linhas.com = `${prefixo}comorbidades clínicas não filtradas`;
+  // Sem comorbidade informada, o perfil completo só aceita quem não tem nenhuma: afrouxar faz entrar quem tem.
+  const semComorbidade = leitura.perfil.comorbidades.length === 0;
+  if (ordem >= 2) {
+    linhas.com = `${prefixo}${semComorbidade ? 'a coorte também inclui pacientes com comorbidades' : 'comorbidades não exigidas'}`;
+  } else if (ordem === 1) {
+    linhas.com = `${prefixo}${semComorbidade ? 'a coorte também inclui pacientes com comorbidades clínicas' : 'comorbidades clínicas não exigidas'}`;
+  }
+
+  const imc = sub('faixa de IMC');
+  if (imc) linhas.imc = `${prefixo}coorte usou ${imc.valor_usado}`;
 
   const faixa = sub('faixa etária');
   if (faixa) linhas.faixa = `${prefixo}coorte usou ${faixa.valor_usado}`;
@@ -178,6 +186,24 @@ export const PerfilPaciente = forwardRef<HTMLElement, PerfilPacienteProps>(funct
             {(a11y) => <SegmentedControl {...a11y} nome="consulta-faixa" opcoes={opcoesFaixa} valor={form.faixa} onChange={(faixa) => alterar({ faixa })} />}
           </Field>
           {desvio.faixa && <LinhaDesvio>{desvio.faixa}</LinhaDesvio>}
+        </div>
+
+        <div className="compositor__imc">
+          <Field id={ID_FOCO.imc} rotulo="Faixa de IMC" complemento="opcional">
+            {(a11y) => (
+              <select {...a11y} className="controle-texto" value={form.imc ?? ''} onChange={(e) => alterar({ imc: e.target.value || null })}>
+                <option value="">Não informar</option>
+                {[...referencias.faixas_imc]
+                  .sort((a, b) => a.ordem - b.ordem)
+                  .map((f) => (
+                    <option key={f.codigo} value={f.codigo}>
+                      {f.rotulo}
+                    </option>
+                  ))}
+              </select>
+            )}
+          </Field>
+          {desvio.imc && <LinhaDesvio>{desvio.imc}</LinhaDesvio>}
         </div>
       </div>
 

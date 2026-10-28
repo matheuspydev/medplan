@@ -23,7 +23,7 @@
   flex-direction: column;
   width: var(--size-drawer);
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: 18px;
   background: var(--color-surface);
   box-shadow: var(--shadow-overlay);
   animation: drawer-entra var(--duration-base) var(--easing-spring);
@@ -56,12 +56,13 @@
   width: 2rem;
   height: 2rem;
   border: 0;
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--color-text-primary) 7%, transparent);
-  color: var(--color-text-secondary);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-tertiary);
 }
 .drawer__fechar:hover {
-  background: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
 }
 .drawer__fechar kbd {
   display: none;

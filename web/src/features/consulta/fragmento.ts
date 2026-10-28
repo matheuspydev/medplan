@@ -2,7 +2,7 @@
  * Estado da consulta no FRAGMENTO da URL (nunca em query string: o fragmento não chega a
  * logs de servidor ou proxy).
  *
- *   #dx=F31.3&sexo=feminino&faixa=26_35&com=F41.1,I10&h=84&nmin=20
+ *   #dx=F31.3&sexo=feminino&faixa=26_35&imc=sobrepeso&com=F41.1,I10&h=84&nmin=20
  *
  * Funções puras. A validação contra o catálogo (código existe, faixa existe, limites) fica na tela.
  * Exportado também para o Registro montar o link "Consultar este perfil":
@@ -14,6 +14,7 @@ export interface EstadoFragmento {
   dx: string | null;
   sexo: Sexo | null;
   faixa: string | null;
+  imc: string | null;
   com: string[];
   h: number | null;
   nmin: number | null;
@@ -21,7 +22,7 @@ export interface EstadoFragmento {
 
 const SEXOS: readonly Sexo[] = ['feminino', 'masculino', 'intersexo', 'nao_informado'];
 
-/** Monta "#chave=valor&..." na ordem dx, sexo, faixa, com, h, nmin; omite o que está vazio. "" se nada. */
+/** Monta "#chave=valor&..." na ordem dx, sexo, faixa, imc, com, h, nmin; omite o que está vazio. "" se nada. */
 export function codificarFragmento(estado: Partial<EstadoFragmento>): string {
   const partes: string[] = [];
   const texto = (chave: string, valor: string | null | undefined) => {
@@ -30,6 +31,7 @@ export function codificarFragmento(estado: Partial<EstadoFragmento>): string {
   texto('dx', estado.dx);
   texto('sexo', estado.sexo);
   texto('faixa', estado.faixa);
+  texto('imc', estado.imc);
   if (estado.com && estado.com.length) partes.push(`com=${estado.com.map(encodeURIComponent).join(',')}`);
   if (estado.h !== null && estado.h !== undefined) partes.push(`h=${estado.h}`);
   if (estado.nmin !== null && estado.nmin !== undefined) partes.push(`nmin=${estado.nmin}`);
@@ -50,7 +52,7 @@ function inteiro(valor: string): number | null {
 
 /** Lê o fragmento com tolerância: chave desconhecida ou valor malformado é ignorado. */
 export function decodificarFragmento(hash: string): EstadoFragmento {
-  const estado: EstadoFragmento = { dx: null, sexo: null, faixa: null, com: [], h: null, nmin: null };
+  const estado: EstadoFragmento = { dx: null, sexo: null, faixa: null, imc: null, com: [], h: null, nmin: null };
   const corpo = hash.startsWith('#') ? hash.slice(1) : hash;
   for (const par of corpo.split('&')) {
     const i = par.indexOf('=');
@@ -68,6 +70,9 @@ export function decodificarFragmento(hash: string): EstadoFragmento {
       }
       case 'faixa':
         estado.faixa = decodificar(bruto) || null;
+        break;
+      case 'imc':
+        estado.imc = decodificar(bruto) || null;
         break;
       case 'com':
         estado.com = [...new Set(bruto.split(',').map(decodificar).filter(Boolean))];

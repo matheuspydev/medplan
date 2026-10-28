@@ -1,6 +1,6 @@
 /**
- * Botão. Primário = fundo grafite (action), 36px; secundário = contornado, 32px; link = sublinhado.
- * Nunca magenta. `type` padrão é "button": Enter em formulário nunca envia por acidente.
+ * Botão. Primário = fundo teal (ação), 40px; secundário = contornado, 40px; link = texto em teal.
+ * `className="botao--pequeno"` reduz para 32px. `type` padrão é "button": Enter em formulário nunca envia por acidente.
  */
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import './Button.css';

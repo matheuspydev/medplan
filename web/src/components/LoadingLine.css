@@ -1,6 +1,6 @@
 .linha-carregando__trilho {
   position: relative;
-  height: 3px;
+  height: 2px;
   overflow: hidden;
   border-radius: var(--radius-pill);
   background: var(--color-data-track);

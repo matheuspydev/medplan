@@ -19,13 +19,13 @@
   left: 0;
   right: 0;
   top: 50%;
-  height: 6px;
+  height: 2px;
   transform: translateY(-50%);
-  border-radius: var(--radius-pill);
+  border-radius: 2px;
   background: var(--color-data-track);
 }
 .faixa-ic--mini .faixa-ic__trilho {
-  height: 4px;
+  height: 2px;
 }
 .faixa-ic__meio {
   position: absolute;
@@ -42,13 +42,13 @@
   left: calc(var(--x) * 100%);
   width: calc(var(--w) * 100%);
   min-width: 2px;
-  height: 6px;
+  height: 8px;
   transform: translateY(-50%);
-  border-radius: var(--radius-pill);
-  background: var(--color-data-ci-neutral);
+  border-radius: 4px;
+  background: var(--color-data-ci);
 }
 .faixa-ic--mini .faixa-ic__ic {
-  height: 4px;
+  height: 6px;
 }
 .faixa-ic--destaque .faixa-ic__ic {
   background: var(--color-data-ci);

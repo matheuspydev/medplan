@@ -14,7 +14,7 @@
 .campo__rotulo.micro {
   color: var(--color-text-secondary);
   font-size: var(--text-table-size);
-  font-weight: var(--font-weight-medium);
+  font-weight: 550;
 }
 .campo__obrigatorio {
   color: var(--color-text-tertiary);
@@ -37,11 +37,11 @@
 /* Controles de texto compartilhados (input, NumberField, DateField, Combobox, select). */
 .controle-texto {
   width: 100%;
-  min-height: var(--size-control);
+  min-height: 40px;
   padding: 0 var(--space-3);
-  border: 1px solid transparent;
+  border: 1px solid var(--color-rule-control);
   border-radius: var(--radius-control);
-  background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+  background: var(--color-surface);
   color: var(--color-text-primary);
   font-size: var(--text-base-size);
   font-weight: var(--font-weight-regular);
@@ -52,12 +52,11 @@
   color: var(--color-text-tertiary);
 }
 .controle-texto:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-text-primary) 7%, transparent);
+  border-color: var(--color-text-tertiary);
 }
 .controle-texto:focus-visible {
-  outline: none;
-  background: var(--color-surface);
-  box-shadow: 0 0 0 var(--focus-width) var(--color-focus), inset 0 0 0 1px var(--color-action);
+  outline: var(--focus-width) solid var(--color-focus);
+  outline-offset: 1px;
 }
 .controle-texto:disabled {
   color: var(--color-text-disabled);

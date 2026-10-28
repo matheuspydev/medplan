@@ -1,26 +1,47 @@
 /**
- * Roteador mínimo (History API, sem biblioteca): /consulta (padrão), /registro, /metodologia.
+ * Roteador mínimo (History API, sem biblioteca).
  *
  * - `useRota()` devolve a rota atual; `navegar('/registro')` troca de tela.
- * - O FRAGMENTO (#...) nunca é tocado aqui: na Consulta ele guarda o estado da consulta.
+ * - O FRAGMENTO (#...) nunca é tocado aqui: na Consulta ele guarda o estado da consulta; na
+ *   ficha do paciente e no registro, a chave (#chave=...), que assim não chega ao servidor.
  *   Ao navegar para outra rota, o fragmento é descartado (cada tela tem o seu).
- * - Qualquer caminho desconhecido (inclusive "/") vira /consulta via replaceState.
+ * - Qualquer caminho desconhecido (inclusive "/") vira a rota inicial via replaceState.
  */
 import { useSyncExternalStore, type AnchorHTMLAttributes, type MouseEvent } from 'react';
 
-export type Rota = '/consulta' | '/registro' | '/metodologia';
+export type Rota =
+  | '/visao-geral'
+  | '/consulta'
+  | '/pacientes'
+  | '/paciente'
+  | '/registro'
+  | '/medicamentos'
+  | '/medicamentos/comparar'
+  | '/reacoes'
+  | '/qualidade'
+  | '/metodologia';
 
+/** `nome` vai no título da aba do navegador. */
 export const ROTAS: { caminho: Rota; nome: string }[] = [
-  { caminho: '/consulta', nome: 'Consulta' },
-  { caminho: '/registro', nome: 'Registro de caso' },
+  { caminho: '/visao-geral', nome: 'Visão geral' },
+  { caminho: '/consulta', nome: 'Consulta por perfil' },
+  { caminho: '/pacientes', nome: 'Pacientes' },
+  { caminho: '/paciente', nome: 'Ficha do paciente' },
+  { caminho: '/registro', nome: 'Registrar atendimento' },
+  { caminho: '/medicamentos', nome: 'Medicamentos' },
+  { caminho: '/medicamentos/comparar', nome: 'Comparar medicamentos' },
+  { caminho: '/reacoes', nome: 'Reações adversas' },
+  { caminho: '/qualidade', nome: 'Qualidade dos dados' },
   { caminho: '/metodologia', nome: 'Metodologia' },
 ];
+
+const ROTA_INICIAL: Rota = '/visao-geral';
 
 const EVENTO = 'medplan:navegacao';
 
 function resolver(caminho: string): Rota {
   const limpo = caminho.replace(/\/+$/, '');
-  return (ROTAS.find((r) => r.caminho === limpo)?.caminho ?? '/consulta') as Rota;
+  return ROTAS.find((r) => r.caminho === limpo)?.caminho ?? ROTA_INICIAL;
 }
 
 /** Corrige a URL inicial para uma rota conhecida, preservando o fragmento. */
@@ -53,12 +74,32 @@ export function useRota(): Rota {
 }
 
 /** <a> que navega sem recarregar (Ctrl/Meta/botão do meio mantêm o comportamento nativo). */
-export function LinkRota({ para, onClick, ...resto }: { para: Rota } & AnchorHTMLAttributes<HTMLAnchorElement>) {
+export function LinkRota({
+  para,
+  fragmento = '',
+  onClick,
+  ...resto
+}: { para: Rota; fragmento?: string } & AnchorHTMLAttributes<HTMLAnchorElement>) {
   function aoClicar(e: MouseEvent<HTMLAnchorElement>) {
     onClick?.(e);
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
-    navegar(para);
+    navegar(para, fragmento);
   }
-  return <a href={para} onClick={aoClicar} {...resto} />;
+  return <a href={`${para}${fragmento}`} onClick={aoClicar} {...resto} />;
+}
+
+/** Fragmento "#chave=REG-..." da ficha do paciente e do registro (a chave não vai para a URL do servidor). */
+export function fragmentoChave(chave: string): string {
+  return `#chave=${encodeURIComponent(chave)}`;
+}
+
+export function lerChaveDoFragmento(hash: string): string | null {
+  const m = /(?:^#|&)chave=([^&]+)/.exec(hash);
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return null;
+  }
 }

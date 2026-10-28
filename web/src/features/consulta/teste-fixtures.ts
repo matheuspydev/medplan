@@ -42,7 +42,13 @@ export const REFERENCIAS_TESTE: Referencias = {
     { codigo: '51_65', rotulo: '51 a 65 anos', ordem: 5 },
     { codigo: '66_mais', rotulo: '66 anos ou mais', ordem: 6 },
   ],
-  faixas_imc: [],
+  faixas_imc: [
+    { codigo: 'baixo_peso', rotulo: 'Baixo peso (< 18,5)', ordem: 1 },
+    { codigo: 'eutrofico', rotulo: 'Eutrófico (18,5 a 24,9)', ordem: 2 },
+    { codigo: 'sobrepeso', rotulo: 'Sobrepeso (25,0 a 29,9)', ordem: 3 },
+    { codigo: 'obesidade_1', rotulo: 'Obesidade grau I (30 a 34,9)', ordem: 4 },
+    { codigo: 'obesidade_2_3', rotulo: 'Obesidade grau II/III (>= 35)', ordem: 5 },
+  ],
   medicamentos: [],
   reacoes_adversas: [],
   opcoes: {

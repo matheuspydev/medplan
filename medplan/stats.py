@@ -136,6 +136,77 @@ def avaliar_horizonte(
     )
 
 
+def pct_inteiro(x: float) -> int:
+    """Percentual inteiro com o critério do Python (1/8 vira 12, não 13). O front nunca arredonda."""
+    return int(format(x, ".0%")[:-1])
+
+
+def com_ic(valor: float, ic: tuple[float, float]) -> dict:
+    """Campos de uma proporção exibível: percentual e IC, brutos e arredondados."""
+    return {
+        "pct": pct_inteiro(valor),
+        "ic_inferior": ic[0],
+        "ic_superior": ic[1],
+        "ic_inferior_pct": pct_inteiro(ic[0]),
+        "ic_superior_pct": pct_inteiro(ic[1]),
+    }
+
+
+def proporcao(k: int, n: int, n_minimo: int) -> dict:
+    """Proporção k/n pronta para a tela, na convenção da API: `n` = casos, `n_base` = denominador.
+
+    Abaixo do n mínimo (ou com denominador 0) volta só `n_base`, com `suficiente: false` e
+    nenhum campo de casos, taxa, percentual ou IC: a tela mostra "dados insuficientes (n=...)".
+    """
+    if n == 0 or n < n_minimo:
+        return {"n_base": n, "suficiente": False}
+    taxa = k / n
+    return {"n": k, "n_base": n, "suficiente": True, "taxa": taxa, **com_ic(taxa, ic_wilson(k, n))}
+
+
+@dataclass(frozen=True)
+class PontoCurva:
+    dia: int
+    sobrevida: float
+    ic: tuple[float, float]
+    n_em_risco: int
+
+
+def kaplan_meier(episodios: list[Episodio], ate_dias: int) -> tuple[list[PontoCurva], list[int]]:
+    """Curva de permanência (Kaplan-Meier) até `ate_dias`, com IC95% de Greenwood.
+
+    O evento é a descontinuação, no dia em que ocorreu. Todo o resto é censura no último
+    dia observado: em uso e perdido de seguimento (como em avaliar_horizonte) e também
+    o concluído com resposta adequada, que não é falha do medicamento.
+
+    Devolve (pontos, dias com censura). O primeiro ponto é o dia 0, com sobrevida 1;
+    depois, um ponto por dia com evento. O IC é a fórmula de Greenwood, limitada a [0, 1].
+    """
+    eventos: dict[int, int] = {}
+    censuras: dict[int, int] = {}
+    for ep in episodios:
+        dia = ep.dias_observados
+        alvo = eventos if ep.status in STATUS_DESCONTINUACAO else censuras
+        alvo[dia] = alvo.get(dia, 0) + 1
+
+    em_risco = len(episodios)
+    sobrevida, soma_greenwood = 1.0, 0.0
+    pontos = [PontoCurva(0, 1.0, (1.0, 1.0), em_risco)]
+    for dia in sorted(set(eventos) | set(censuras)):
+        if dia > ate_dias:
+            break
+        d = eventos.get(dia, 0)
+        if d:
+            sobrevida *= 1 - d / em_risco
+            if em_risco > d:
+                soma_greenwood += d / (em_risco * (em_risco - d))
+            margem = 1.96 * sobrevida * math.sqrt(soma_greenwood)
+            pontos.append(PontoCurva(dia, sobrevida, (max(0.0, sobrevida - margem), min(1.0, sobrevida + margem)), em_risco))
+        em_risco -= d + censuras.get(dia, 0)
+    dias_censura = sorted(dia for dia in censuras if 0 < dia <= ate_dias)
+    return pontos, dias_censura
+
+
 def formatar_taxa(taxa: float | None, ic: tuple[float, float] | None, n: int) -> str:
     """Formata uma proporção sempre acompanhada de n e IC.
 

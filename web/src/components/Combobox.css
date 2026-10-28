@@ -35,7 +35,8 @@
   width: max-content;
   max-width: min(34rem, calc(100vw - 2rem));
   overflow: hidden;
-  border-radius: var(--radius-inner);
+  border: 1px solid var(--color-rule-hairline);
+  border-radius: 14px;
   background: var(--color-surface-raised);
   box-shadow: var(--shadow-overlay);
   animation: combobox-entra var(--duration-fast) var(--easing-spring);
@@ -67,13 +68,7 @@
   color: var(--color-text-primary);
 }
 .combobox__opcao--ativa {
-  background: var(--color-action);
-  color: var(--color-on-action);
-}
-.combobox__opcao--ativa .combobox__detalhe,
-.combobox__opcao--ativa .combobox__motivo,
-.combobox__opcao--ativa .combobox__codigo {
-  color: color-mix(in srgb, var(--color-on-action) 80%, transparent);
+  background: var(--color-surface-hover);
 }
 .combobox__opcao--desabilitada {
   cursor: not-allowed;
@@ -125,10 +120,11 @@
   align-items: center;
   gap: var(--space-1);
   max-width: 100%;
-  min-height: 1.875rem;
-  padding: 0 var(--space-1) 0 var(--space-3);
+  min-height: 30px;
+  padding: 2px 3px 2px var(--space-3);
+  border: 1px solid var(--color-rule-control);
   border-radius: var(--radius-pill);
-  background: var(--color-signal-tint);
+  background: var(--color-surface);
   color: var(--color-text-primary);
 }
 .multi-combobox__item-texto {

@@ -1,0 +1,137 @@
+.lista-pacientes {
+  padding: 0;
+}
+.lista-pacientes__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-rule-hairline);
+}
+.lista-pacientes__filtros select.controle-texto {
+  width: auto;
+}
+.lista-pacientes__busca {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 16rem;
+  max-width: 24rem;
+  color: var(--color-text-tertiary);
+}
+.lista-pacientes__busca svg {
+  position: absolute;
+  left: var(--space-3);
+}
+.lista-pacientes__busca .controle-texto {
+  padding-left: calc(var(--space-3) + 16px + var(--space-2));
+}
+.lista-pacientes__total {
+  margin-left: auto;
+}
+.lista-pacientes .tabela th:first-child,
+.lista-pacientes .tabela td:first-child {
+  padding-left: var(--space-5);
+}
+.lista-pacientes__vazio {
+  padding: var(--space-10) var(--space-5);
+  text-align: center;
+}
+.lista-pacientes__vazio-titulo {
+  font-weight: var(--font-weight-semibold);
+}
+.lista-pacientes__paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--color-rule-hairline);
+}
+.lista-pacientes__botoes {
+  display: flex;
+  gap: 6px;
+}
+.lista-pacientes .linha-carregando,
+.lista-pacientes .painel-falha {
+  margin: var(--space-4) var(--space-5);
+}
+
+/* ---- ficha ---------------------------------------------------------------------- */
+.ficha-paciente__chave {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+.trajetoria svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+.trajetoria__grade line {
+  stroke: var(--color-rule-hairline);
+}
+.trajetoria__mes {
+  fill: var(--color-text-tertiary);
+  font-size: 12px;
+}
+.trajetoria__nome {
+  fill: var(--color-text-primary);
+  font-weight: 600;
+}
+.trajetoria__status {
+  fill: var(--color-text-tertiary);
+  font-size: 12px;
+}
+.trajetoria__barra--encerrado {
+  fill: var(--color-data-1);
+}
+.trajetoria__barra--aberto {
+  fill: var(--color-data-1);
+  opacity: 0.35;
+}
+.trajetoria__atendimento {
+  fill: var(--color-surface);
+  stroke: var(--color-data-point);
+  stroke-width: 2;
+}
+.trajetoria__reacao {
+  fill: var(--color-data-point);
+}
+.lista-reacoes {
+  list-style: none;
+}
+.lista-reacoes li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: 10px 0;
+  border-top: 1px solid var(--color-rule-hairline);
+  font-size: var(--text-table-size);
+}
+.lista-reacoes li:first-child {
+  border-top: 0;
+}
+.etiqueta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 1px var(--space-2);
+  border: 1px solid var(--color-rule-hairline);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption-size);
+  font-weight: 550;
+  white-space: nowrap;
+}
+.etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

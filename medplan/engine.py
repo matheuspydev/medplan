@@ -18,7 +18,7 @@ import statistics
 from dataclasses import dataclass, field
 from datetime import date
 
-from .matching import NIVEIS, Nivel, PerfilAlvo, construir_consulta
+from .matching import Nivel, PerfilAlvo, construir_consulta, niveis_para
 from .stats import (
     HORIZONTE_PADRAO_DIAS,
     Episodio,
@@ -233,7 +233,7 @@ def diagnosticar_escada(
     só ficou grande o bastante às custas de deixar de ser parecida.
     """
     degraus = []
-    for nivel in NIVEIS:
+    for nivel in niveis_para(alvo):
         sql_coorte, params = construir_consulta(alvo, nivel)
         n_perfis = conn.execute(
             f"SELECT COUNT(*) FROM ({sql_coorte})", params
@@ -266,11 +266,12 @@ def recomendar(
     Se nem o degrau mais frouxo chegar lá, devolve uma recomendação vazia — o
     sistema diz "dados insuficientes" em vez de exibir um percentual sem lastro.
     """
-    nivel_final = NIVEIS[-1]
+    niveis = niveis_para(alvo)
+    nivel_final = niveis[-1]
     n_perfis = 0
     linhas: list[LinhaMedicamento] = []
 
-    for nivel in NIVEIS:
+    for nivel in niveis:
         n_perfis, linhas = _avaliar_nivel(conn, alvo, nivel, horizonte_dias)
         nivel_final = nivel
         if any(l.resultado.n_avaliavel >= n_minimo for l in linhas):

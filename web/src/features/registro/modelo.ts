@@ -1,260 +1,252 @@
 /**
- * Rascunho do Registro de caso (só em memória) e as chaves de campo usadas por validação,
- * erros do servidor, pendências e foco.
+ * Rascunho do Registrar atendimento (só em memória), validação local, corpo de POST /atendimentos
+ * e o caminho dos erros 422 até o campo da tela.
  *
  * `null` em qualquer escolha = ainda não escolhido (a UI exige escolha explícita).
- * Exceção: `faixa_imc_cod`, onde `undefined` = não escolhida e `null` = "Desconhecida".
+ * Exceções, onde `undefined` = não escolhida e `null` = desconhecido: `faixa_imc_cod`
+ * ("Não informado") e `linha_tratamento` ("Não sabemos", opcional: o banco aceita vazio).
  *
- * Chaves de campo (estáveis, não mudam quando um tratamento é removido):
- *   perfil.sexo · t3.data_inicio · t3.status · t3.reacoes · t3.r7.gravidade_observada
- * O servidor usa índices ("tratamentos.0.desfecho.data_fim"); `chaveDoCampoServidor` converte.
+ * Chaves de campo: o nome do campo ("data_atendimento", "chave", "sexo") e, nas reações,
+ * "r7.gravidade_observada" (o id da reação não muda quando outra é removida).
  */
-import type { FuncaoOrgao, GestacaoLactacao, Gravidade, Sexo, StatusTratamento, Tabagismo, UsoSubstancias, Via } from '../../api/types';
+import type { AtendimentoEntrada, Gravidade, Sexo, StatusTratamento, Tabagismo } from '../../api/types';
 
-export interface RascunhoPerfil {
-  cid10_principal: string | null;
-  sexo: Sexo | null;
-  faixa_etaria_cod: string | null;
-  comorbidades: string[];
-  /** undefined = não escolhida; null = desconhecida. */
-  faixa_imc_cod: string | null | undefined;
-  tabagismo: Tabagismo | null;
-  gestacao_lactacao: GestacaoLactacao | null;
-  funcao_renal: FuncaoOrgao | null;
-  funcao_hepatica: FuncaoOrgao | null;
-  uso_substancias: UsoSubstancias | null;
-}
+/** Espelho de atendimento.FORMATO_CHAVE. */
+export const FORMATO_CHAVE = /^[A-Z0-9][A-Z0-9-]{3,31}$/;
+
+/** Causador "prescrito neste atendimento"; os anteriores são `${medicamento_id}|${data_inicio}`. */
+export const CAUSADOR_ATUAL = 'atual';
 
 export interface RascunhoReacao {
   id: number;
   reacao_adversa_id: number | null;
-  dias_ate_inicio: number | null;
+  causador: string | null;
+  data_inicio_reacao: string | null;
+  /** "Paciente não soube informar": a data vai como null. */
+  sem_data: boolean;
   gravidade_observada: Gravidade | null;
   levou_descontinuacao: boolean | null;
 }
 
-export interface RascunhoTratamento {
-  id: number;
+export interface Rascunho {
+  modo: 'existente' | 'novo';
+  chave: string;
+  /** Só no primeiro atendimento. */
+  sexo: Sexo | null;
+  data_atendimento: string | null;
+  faixa_etaria_cod: string | null;
+  faixa_imc_cod: string | null | undefined;
+  tabagismo: Tabagismo | null;
+  cid10_principal: string | null;
+  comorbidades: string[];
   medicamento_id: number | null;
-  data_inicio: string | null;
-  linha_tratamento: number | null;
-  via: Via | null;
-  dose_inicial: number | null;
-  dose_manutencao: number | null;
-  unidade_dose: string | null;
+  data_inicio_medicamento: string | null;
+  linha_tratamento: number | null | undefined;
   status: StatusTratamento | null;
-  data_fim: string | null;
-  /** Encerrado sem valor: a tela mostra a data de fim e o payload a envia explicitamente. */
-  data_ultima_observacao: string | null;
-  efetividade_percebida: number | null;
   reacoes: RascunhoReacao[];
 }
 
-export interface Rascunho {
-  perfil: RascunhoPerfil;
-  tratamentos: RascunhoTratamento[];
-}
-
-export const MAX_TRATAMENTOS = 10;
-
-/** Espelho de stats.STATUS_CENSURA: sem desfecho conhecido, data de fim não se aplica. */
-export const STATUS_CENSURA: readonly StatusTratamento[] = ['em_uso', 'perdido_seguimento'];
-
-export function ehCensura(status: StatusTratamento | null): boolean {
-  return status !== null && STATUS_CENSURA.includes(status);
-}
-
-/** Encerrado = concluído ou descontinuado (data de fim obrigatória). */
-export function ehEncerrado(status: StatusTratamento | null): boolean {
-  return status !== null && !STATUS_CENSURA.includes(status);
-}
-
-export function ehDescontinuacao(status: StatusTratamento | null): boolean {
-  return status !== null && status.startsWith('desc_');
+/** Medicamento anterior do paciente que pode ter causado a reação. */
+export interface TratamentoAnterior {
+  medicamento_id: number;
+  data_inicio: string;
 }
 
 let proximoId = 1;
-function novoId(): number {
-  return proximoId++;
-}
 
 export function novaReacao(): RascunhoReacao {
-  return { id: novoId(), reacao_adversa_id: null, dias_ate_inicio: null, gravidade_observada: null, levou_descontinuacao: null };
+  return {
+    id: proximoId++,
+    reacao_adversa_id: null,
+    causador: null,
+    data_inicio_reacao: null,
+    sem_data: false,
+    gravidade_observada: null,
+    levou_descontinuacao: null,
+  };
 }
 
-export function novoTratamento(): RascunhoTratamento {
+export function novoRascunho(chave: string | null): Rascunho {
   return {
-    id: novoId(),
+    modo: chave ? 'existente' : 'novo',
+    chave: chave ?? '',
+    sexo: null,
+    data_atendimento: null,
+    faixa_etaria_cod: null,
+    faixa_imc_cod: undefined,
+    tabagismo: null,
+    cid10_principal: null,
+    comorbidades: [],
     medicamento_id: null,
-    data_inicio: null,
-    linha_tratamento: null,
-    via: null,
-    dose_inicial: null,
-    dose_manutencao: null,
-    unidade_dose: null,
+    data_inicio_medicamento: null,
+    linha_tratamento: undefined,
     status: null,
-    data_fim: null,
-    data_ultima_observacao: null,
-    efetividade_percebida: null,
     reacoes: [],
   };
 }
 
-export function novoRascunho(): Rascunho {
-  return {
-    perfil: {
-      cid10_principal: null,
-      sexo: null,
-      faixa_etaria_cod: null,
-      comorbidades: [],
-      faixa_imc_cod: undefined,
-      tabagismo: null,
-      gestacao_lactacao: null,
-      funcao_renal: null,
-      funcao_hepatica: null,
-      uso_substancias: null,
-    },
-    tratamentos: [novoTratamento()],
-  };
+export const valorCausador = (t: TratamentoAnterior) => `${t.medicamento_id}|${t.data_inicio}`;
+
+/** Medicamento e data de início do causador escolhido (null enquanto falta o necessário). */
+export function causadorDe(r: RascunhoReacao, rascunho: Rascunho): TratamentoAnterior | null {
+  if (r.causador === null) return null;
+  if (r.causador === CAUSADOR_ATUAL) {
+    if (rascunho.medicamento_id === null || rascunho.data_inicio_medicamento === null) return null;
+    return { medicamento_id: rascunho.medicamento_id, data_inicio: rascunho.data_inicio_medicamento };
+  }
+  const [id, data] = r.causador.split('|');
+  return { medicamento_id: Number(id), data_inicio: data };
 }
 
 // ---------------------------------------------------------------------------
-// Chaves de campo
+// Validação local (o servidor revalida tudo)
 // ---------------------------------------------------------------------------
-export const CAMPOS_PERFIL = [
-  'cid10_principal',
-  'sexo',
+export interface Pendencia {
+  chave: string;
+  rotulo: string;
+  mensagem: string;
+}
+
+const ROTULOS: Record<string, string> = {
+  chave: 'Paciente: chave pseudônima',
+  sexo: 'Paciente: sexo',
+  data_atendimento: 'Atendimento: data',
+  faixa_etaria_cod: 'Atendimento: faixa etária',
+  faixa_imc_cod: 'Atendimento: faixa de IMC',
+  tabagismo: 'Atendimento: tabagismo',
+  cid10_principal: 'Atendimento: diagnóstico principal',
+  comorbidades: 'Atendimento: comorbidades',
+  medicamento_id: 'Medicamento prescrito',
+  data_inicio_medicamento: 'Data de início do medicamento',
+  linha_tratamento: 'Linha de tratamento',
+  status: 'Status do tratamento',
+  reacao_adversa_id: 'termo',
+  causador: 'medicamento que causou',
+  data_inicio_reacao: 'data de início',
+  gravidade_observada: 'gravidade',
+  levou_descontinuacao: 'levou à descontinuação',
+};
+
+/** "r7.gravidade_observada" -> "Reação 2: gravidade" (posição atual). */
+export function rotuloDaChave(chave: string, rascunho: Rascunho): string {
+  const m = /^r(\d+)\.(.+)$/.exec(chave);
+  if (!m) return ROTULOS[chave] ?? chave;
+  const n = rascunho.reacoes.findIndex((r) => r.id === Number(m[1])) + 1;
+  return `Reação ${n}: ${ROTULOS[m[2]]}`;
+}
+
+/**
+ * Pendências na ordem do formulário. `pacienteEncontrado`: no modo "já registrado", a chave
+ * precisa corresponder a um paciente da base (null = ainda buscando).
+ */
+export function validar(rascunho: Rascunho, hoje: string, pacienteEncontrado: boolean | null): Pendencia[] {
+  const p: Pendencia[] = [];
+  const falta = (chave: string, mensagem = 'Obrigatório.') => p.push({ chave, rotulo: rotuloDaChave(chave, rascunho), mensagem });
+  const a = rascunho;
+
+  if (!a.chave) falta('chave');
+  else if (!FORMATO_CHAVE.test(a.chave)) falta('chave', 'Use a chave da exportação: 4 a 32 caracteres, letras maiúsculas, dígitos e hífen.');
+  else if (a.modo === 'existente' && pacienteEncontrado === false) falta('chave', 'Nenhum paciente com esta chave. Se é a primeira consulta, use "Primeiro atendimento".');
+  if (a.modo === 'novo' && a.sexo === null) falta('sexo');
+
+  if (!a.data_atendimento) falta('data_atendimento');
+  else if (a.data_atendimento > hoje) falta('data_atendimento', 'A data do atendimento não pode estar no futuro.');
+  if (a.faixa_etaria_cod === null) falta('faixa_etaria_cod');
+  if (a.faixa_imc_cod === undefined) falta('faixa_imc_cod');
+  if (a.tabagismo === null) falta('tabagismo');
+  if (a.cid10_principal === null) falta('cid10_principal');
+  else if (a.comorbidades.includes(a.cid10_principal)) falta('comorbidades', 'A comorbidade não pode ser o próprio diagnóstico principal.');
+
+  if (a.medicamento_id === null) falta('medicamento_id');
+  if (!a.data_inicio_medicamento) falta('data_inicio_medicamento');
+  else if (a.data_atendimento && a.data_inicio_medicamento > a.data_atendimento)
+    falta('data_inicio_medicamento', 'O início do medicamento não pode ser depois do atendimento.');
+  if (a.status === null) falta('status');
+
+  const vistas = new Set<string>();
+  for (const r of a.reacoes) {
+    const k = (campo: string) => `r${r.id}.${campo}`;
+    const causador = causadorDe(r, a);
+    if (r.reacao_adversa_id === null) falta(k('reacao_adversa_id'));
+    else if (causador) {
+      const par = `${r.reacao_adversa_id}|${causador.medicamento_id}`;
+      if (vistas.has(par)) falta(k('reacao_adversa_id'), 'Reação repetida para o mesmo medicamento.');
+      vistas.add(par);
+    }
+    if (r.causador === null) falta(k('causador'));
+    if (!r.sem_data) {
+      if (!r.data_inicio_reacao) falta(k('data_inicio_reacao'), 'Informe a data ou marque "Paciente não soube informar".');
+      else if (causador && a.data_atendimento && !(causador.data_inicio <= r.data_inicio_reacao && r.data_inicio_reacao <= a.data_atendimento))
+        falta(k('data_inicio_reacao'), 'A reação tem de começar entre o início do medicamento e o atendimento.');
+    }
+    if (r.gravidade_observada === null) falta(k('gravidade_observada'));
+    if (r.levou_descontinuacao === null) falta(k('levou_descontinuacao'));
+  }
+  return p;
+}
+
+/** Rascunho sem pendências -> corpo exato de POST /atendimentos. */
+export function montarEntrada(a: Rascunho): AtendimentoEntrada {
+  return {
+    paciente: a.modo === 'novo' ? { chave_pseudonima: a.chave, sexo: a.sexo } : { chave_pseudonima: a.chave },
+    data_atendimento: a.data_atendimento!,
+    faixa_etaria_cod: a.faixa_etaria_cod!,
+    faixa_imc_cod: a.faixa_imc_cod ?? null,
+    tabagismo: a.tabagismo!,
+    cid10_principal: a.cid10_principal!,
+    comorbidades: [...a.comorbidades],
+    medicamento_id: a.medicamento_id!,
+    data_inicio_medicamento: a.data_inicio_medicamento!,
+    linha_tratamento: a.linha_tratamento ?? null,
+    status: a.status!,
+    reacoes: a.reacoes.map((r) => {
+      const causador = causadorDe(r, a)!;
+      return {
+        reacao_adversa_id: r.reacao_adversa_id!,
+        medicamento_id: causador.medicamento_id,
+        data_inicio_medicamento: causador.data_inicio,
+        data_inicio_reacao: r.sem_data ? null : r.data_inicio_reacao,
+        gravidade_observada: r.gravidade_observada!,
+        levou_descontinuacao: r.levou_descontinuacao!,
+      };
+    }),
+  };
+}
+
+const CAMPOS_ATENDIMENTO = [
+  'data_atendimento',
   'faixa_etaria_cod',
-  'comorbidades',
   'faixa_imc_cod',
   'tabagismo',
-  'gestacao_lactacao',
-  'funcao_renal',
-  'funcao_hepatica',
-  'uso_substancias',
-] as const;
-export type CampoPerfil = (typeof CAMPOS_PERFIL)[number];
-
-/** Na ordem visual do bloco. `reacoes` é a seção inteira (alerta de causa). */
-export const CAMPOS_TRATAMENTO = [
+  'cid10_principal',
   'medicamento_id',
-  'data_inicio',
+  'data_inicio_medicamento',
   'linha_tratamento',
-  'via',
-  'dose_inicial',
-  'dose_manutencao',
-  'unidade_dose',
   'status',
-  'data_fim',
-  'data_ultima_observacao',
-  'efetividade_percebida',
-  'reacoes',
-] as const;
-export type CampoTratamento = (typeof CAMPOS_TRATAMENTO)[number];
+];
 
-export const CAMPOS_REACAO = ['reacao_adversa_id', 'dias_ate_inicio', 'gravidade_observada', 'levou_descontinuacao'] as const;
-export type CampoReacao = (typeof CAMPOS_REACAO)[number];
+/**
+ * Caminho de erro do servidor -> chave do campo no rascunho enviado.
+ * null quando não corresponde a um campo da tela (vira mensagem geral).
+ */
+export function chaveDoCampoServidor(campo: string, enviado: Rascunho): string | null {
+  if (campo === 'paciente.chave_pseudonima') return 'chave';
+  if (campo === 'paciente.sexo') return enviado.modo === 'novo' ? 'sexo' : 'chave';
+  if (CAMPOS_ATENDIMENTO.includes(campo)) return campo;
+  if (/^comorbidades(\.\d+)?$/.test(campo)) return 'comorbidades';
+  const m = /^reacoes\.(\d+)\.(\w+)$/.exec(campo);
+  const reacao = m ? enviado.reacoes[Number(m[1])] : undefined;
+  if (!m || !reacao) return null;
+  const nome = m[2] === 'medicamento_id' || m[2] === 'data_inicio_medicamento' ? 'causador' : m[2];
+  return nome in ROTULOS ? `r${reacao.id}.${nome}` : null;
+}
 
-export const chavePerfil = (campo: CampoPerfil) => `perfil.${campo}`;
-export const chaveTratamento = (tid: number, campo: CampoTratamento) => `t${tid}.${campo}`;
-export const chaveReacao = (tid: number, rid: number, campo: CampoReacao) => `t${tid}.r${rid}.${campo}`;
-
-/** id do elemento DOM do campo: "perfil.sexo" -> "reg-perfil-sexo". */
+/** id do elemento DOM do campo: "r7.gravidade_observada" -> "reg-r7-gravidade_observada". */
 export function idDom(chave: string): string {
   return `reg-${chave.replace(/\./g, '-')}`;
 }
 
-/**
- * Caminho de erro do servidor (422) -> chave estável do rascunho que foi enviado.
- * Devolve null quando o caminho não corresponde a um campo da tela (vira mensagem geral).
- */
-export function chaveDoCampoServidor(campo: string, rascunho: Rascunho): string | null {
-  const partes = campo.split('.');
-  if (partes[0] === 'perfil') {
-    // "perfil.comorbidades.2" aponta para o seletor de comorbidades inteiro
-    const nome = partes[1];
-    const valido = (CAMPOS_PERFIL as readonly string[]).includes(nome) && (partes.length === 2 || (nome === 'comorbidades' && partes.length === 3));
-    return valido ? chavePerfil(nome as CampoPerfil) : null;
-  }
-  if (partes[0] !== 'tratamentos' || partes.length < 3) return null;
-
-  const tratamento = rascunho.tratamentos[Number(partes[1])];
-  if (!/^\d+$/.test(partes[1]) || !tratamento) return null;
-  const resto = partes.slice(2);
-
-  if (resto[0] === 'reacoes' && resto.length === 3) {
-    const reacao = /^\d+$/.test(resto[1]) ? tratamento.reacoes[Number(resto[1])] : undefined;
-    return reacao && (CAMPOS_REACAO as readonly string[]).includes(resto[2])
-      ? chaveReacao(tratamento.id, reacao.id, resto[2] as CampoReacao)
-      : null;
-  }
-  const nome = resto[0] === 'desfecho' && resto.length === 2 ? resto[1] : resto.length === 1 ? resto[0] : null;
-  return nome && (CAMPOS_TRATAMENTO as readonly string[]).includes(nome) ? chaveTratamento(tratamento.id, nome as CampoTratamento) : null;
-}
-
-/** Todas as chaves do rascunho, na ordem do formulário (ordem das pendências). */
-export function chavesEmOrdem(rascunho: Rascunho): string[] {
-  const chaves = CAMPOS_PERFIL.map(chavePerfil);
-  for (const t of rascunho.tratamentos) {
-    for (const campo of CAMPOS_TRATAMENTO) {
-      if (campo === 'reacoes') {
-        chaves.push(chaveTratamento(t.id, 'reacoes'));
-        for (const r of t.reacoes) chaves.push(...CAMPOS_REACAO.map((c) => chaveReacao(t.id, r.id, c)));
-      } else {
-        chaves.push(chaveTratamento(t.id, campo));
-      }
-    }
-  }
-  return chaves;
-}
-
-/** Rótulo curto do campo, para a lista de pendências. */
-export const ROTULO_CAMPO: Record<CampoPerfil | CampoTratamento | CampoReacao, string> = {
-  cid10_principal: 'Diagnóstico principal',
-  sexo: 'Sexo',
-  faixa_etaria_cod: 'Faixa etária',
-  comorbidades: 'Comorbidades',
-  faixa_imc_cod: 'Faixa de IMC',
-  tabagismo: 'Tabagismo',
-  gestacao_lactacao: 'Gestação/lactação',
-  funcao_renal: 'Função renal',
-  funcao_hepatica: 'Função hepática',
-  uso_substancias: 'Uso de substâncias',
-  medicamento_id: 'Medicamento',
-  data_inicio: 'Data de início',
-  linha_tratamento: 'Linha de tratamento',
-  via: 'Via',
-  dose_inicial: 'Dose inicial',
-  dose_manutencao: 'Dose de manutenção',
-  unidade_dose: 'Unidade da dose',
-  status: 'Status',
-  data_fim: 'Data de fim',
-  data_ultima_observacao: 'Data da última observação',
-  efetividade_percebida: 'Efetividade percebida',
-  reacoes: 'Reações adversas',
-  reacao_adversa_id: 'Termo',
-  dias_ate_inicio: 'Dias até o início',
-  gravidade_observada: 'Gravidade observada',
-  levou_descontinuacao: 'Levou à descontinuação',
-};
-
-/** "t3.r7.gravidade_observada" -> "T1 · reação 2 · Gravidade observada" (posições atuais). */
-export function descreverChave(chave: string, rascunho: Rascunho): string {
-  const partes = chave.split('.');
-  const campo = partes[partes.length - 1] as keyof typeof ROTULO_CAMPO;
-  if (partes[0] === 'perfil') return `Perfil · ${ROTULO_CAMPO[campo]}`;
-  const i = rascunho.tratamentos.findIndex((t) => `t${t.id}` === partes[0]);
-  const prefixo = `T${i + 1}`;
-  if (partes.length === 3) {
-    const j = rascunho.tratamentos[i]?.reacoes.findIndex((r) => `r${r.id}` === partes[1]) ?? -1;
-    return `${prefixo} · reação ${j + 1} · ${ROTULO_CAMPO[campo]}`;
-  }
-  return `${prefixo} · ${ROTULO_CAMPO[campo]}`;
-}
-
 /** Diferença em dias entre duas datas ISO (b - a). */
 export function diasEntre(a: string, b: string): number {
-  const [ya, ma, da] = a.split('-').map(Number);
-  const [yb, mb, db] = b.split('-').map(Number);
-  return Math.round((Date.UTC(yb, mb - 1, db) - Date.UTC(ya, ma - 1, da)) / 86_400_000);
+  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 }

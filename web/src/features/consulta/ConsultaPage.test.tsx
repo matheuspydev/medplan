@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReferenciasProvider } from '../../api/referencias';
 import type { AnaliseResposta, DegrauEscada, LinhaRecomendada } from '../../api/types';
+import { FiltrosProvider } from '../../app/filtros';
 import { AVISO_VIES_INDICACAO } from '../metodologia/ConteudoMetodologia';
 import ConsultaPage from './ConsultaPage';
 import { REFERENCIAS_TESTE } from './teste-fixtures';
@@ -9,8 +10,8 @@ import { REFERENCIAS_TESTE } from './teste-fixtures';
 // Resposta SINTÉTICA com a forma do contrato. Nomes são placeholders; proporções conferidas com ic_wilson
 // (valores de layout da spec, sem significado clínico).
 const substituicoes = [
-  { criterio: 'comorbidades clínicas', valor_informado: 'nenhuma', valor_usado: 'não filtradas' },
-  { criterio: 'comorbidades psiquiátricas', valor_informado: 'nenhuma', valor_usado: 'não filtradas' },
+  { criterio: 'comorbidades clínicas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
+  { criterio: 'comorbidades psiquiátricas', valor_informado: 'sem comorbidades', valor_usado: 'com ou sem comorbidades' },
   { criterio: 'faixa etária', valor_informado: '26 a 35 anos', valor_usado: '18 a 50 anos' },
   { criterio: 'sexo', valor_informado: 'feminino', valor_usado: 'todos' },
   {
@@ -84,6 +85,15 @@ function resposta(parcial: Partial<AnaliseResposta> = {}): AnaliseResposta {
     escada: escada(3, [1, 2, 5, 37, 40, 90]),
     avisos: [{ tipo: 'vies_indicacao', texto: AVISO_VIES_INDICACAO }],
     total_censurado: 22,
+    frequencia_prescricao: {
+      n_atendimentos: 140,
+      n_pacientes: 40,
+      classes: [
+        { classe_terapeutica: 'Classe sintética 1', suficiente: true, n: 91, n_base: 140, taxa: 0.65, pct: 65, ic_inferior: 0.57, ic_superior: 0.72, ic_inferior_pct: 57, ic_superior_pct: 72 },
+        { classe_terapeutica: 'Classe sintética 2', suficiente: true, n: 49, n_base: 140, taxa: 0.35, pct: 35, ic_inferior: 0.28, ic_superior: 0.43, ic_inferior_pct: 28, ic_superior_pct: 43 },
+      ],
+      medicamentos: [],
+    },
     proveniencia: { sintetico: true, n_perfis_base: 6000, calculado_em: '2026-09-14T14:32:05-03:00' },
     recomendados: [linha(1, 'Fármaco A', 26, 37, 70, 54, 83), linha(2, 'Fármaco B', 22, 34, 65, 48, 79), linha(3, 'Fármaco C', 19, 29, 66, 47, 80)],
     sem_dados_suficientes: [{ medicamento_id: 9, principio_ativo: 'Fármaco D', classe_terapeutica: 'Classe sintética', codigo_atc: 'N0XXX00', n_episodios: 15, n_avaliavel: 12, n_censurado: 3 }],
@@ -107,7 +117,9 @@ function montar(respostas: (() => Response)[]) {
   vi.stubGlobal('fetch', fetchMock);
   render(
     <ReferenciasProvider>
-      <ConsultaPage />
+      <FiltrosProvider>
+        <ConsultaPage />
+      </FiltrosProvider>
     </ReferenciasProvider>,
   );
   return { analises };
@@ -125,7 +137,7 @@ describe('<ConsultaPage>', () => {
   it('antes da leitura: disclaimer + prévia; submit incompleto marca e foca o diagnóstico, sem chamar a API', async () => {
     const { analises } = montar([]);
     expect(await screen.findByText('Se faltarem casos, o sistema ignora nesta ordem')).toBeTruthy();
-    expect(screen.getAllByRole('note').some((n) => n.textContent?.includes('Apoio à decisão — não é prescrição.'))).toBe(true);
+    expect(screen.getAllByRole('note').some((n) => n.textContent?.includes('Apoio à decisão. Não é prescrição.'))).toBe(true);
     // sexo e faixa sem pré-seleção
     expect(screen.getAllByRole('radio').every((r) => !(r as HTMLInputElement).checked)).toBe(true);
 
@@ -149,7 +161,7 @@ describe('<ConsultaPage>', () => {
     const { analises } = montar([() => json(resposta())]);
 
     expect(await screen.findByRole('img', { name: '70 por cento; n igual a 37; intervalo de confiança de 95 por cento de 54 a 83 por cento' })).toBeTruthy();
-    expect(analises).toEqual([{ sexo: 'feminino', faixa_etaria_cod: '26_35', cid10_principal: 'F31.3', comorbidades: [], horizonte_dias: 84, n_minimo: 20 }]);
+    expect(analises).toEqual([{ sexo: 'feminino', faixa_etaria_cod: '26_35', faixa_imc_cod: null, cid10_principal: 'F31.3', comorbidades: [], horizonte_dias: 84, n_minimo: 20 }]);
 
     expect(screen.getByText(AVISO_VIES_INDICACAO)).toBeTruthy();
     expect(screen.getByRole('button', { name: '3 critérios ignorados' })).toBeTruthy();
@@ -157,7 +169,7 @@ describe('<ConsultaPage>', () => {
     expect(caixa.querySelectorAll('s')).toHaveLength(3);
     expect(caixa.textContent).toContain('A coorte abaixo não corresponde exatamente ao perfil informado.');
     expect(screen.getByText('Parou aqui')).toBeTruthy();
-    expect(screen.getAllByText('não necessário')).toHaveLength(2);
+    expect(screen.getAllByText('Não foi necessário')).toHaveLength(2);
     expect(screen.getByText('Taxa pontual maior que a de Fármaco B, mas limite inferior do IC95% menor: n menor (29 vs. 34).')).toBeTruthy();
     expect(screen.getByText('22 tratamentos fora do denominador por seguimento menor que 84 dias.', { exact: false })).toBeTruthy();
     expect(screen.getByRole('img', { name: 'dados insuficientes; n igual a 12' }).textContent).toBe('dados insuficientes (n=12)');
@@ -239,7 +251,7 @@ describe('<ConsultaPage>', () => {
     expect(await screen.findByRole('heading', { name: 'Dados insuficientes' })).toBeTruthy();
     expect(screen.getByText('Último nível tentado')).toBeTruthy();
     expect(screen.queryByText('Parou aqui')).toBeNull();
-    expect(screen.getByText(/Nenhum medicamento atingiu n=100/).textContent).not.toMatch(/\d\s*%/);
+    expect(screen.getByText(/Nenhum medicamento tem casos suficientes para este perfil: o mínimo é 100 tratamentos/).textContent).not.toMatch(/\d\s*%/);
     expect(screen.getAllByText(/contém só/).length).toBeGreaterThan(0);
     expect(document.querySelector('.permanencia')).toBeNull();
     expect(screen.queryByText(/baixar|reduzir o n/i)).toBeNull();

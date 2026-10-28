@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 
 from medplan import db, engine, synth
 from medplan.api import app, criar_app
-from medplan.matching import NIVEIS, PerfilAlvo, construir_consulta
+from medplan.matching import NIVEIS, PerfilAlvo, construir_consulta, niveis_para
 from tests.test_engine import HOSPITAL, criar_episodio, criar_perfil
 
 CHAVES_PROPORCAO = {"taxa", "proporcao", "pct"}
@@ -130,7 +130,7 @@ class TestReferenciasEAnaliseSintetica(ComBanco):
         self.assertEqual(len(ref["medicamentos"]), 23)
         self.assertEqual(set(ref["medicamentos"][0]),
                          {"id", "principio_ativo", "codigo_atc", "classe_terapeutica"})
-        self.assertEqual(len(ref["reacoes_adversas"]), 26)
+        self.assertEqual(len(ref["reacoes_adversas"]), 27)  # 26 + "Perda de peso"
         self.assertEqual(set(ref["reacoes_adversas"][0]),
                          {"id", "termo", "soc", "gravidade_padrao"})
 
@@ -295,7 +295,7 @@ class TestAnaliseControlada(ComBanco):
     def coorte(self, alvo, ordem, coluna):
         conn = db.conectar(self.caminho)
         try:
-            sql, params = construir_consulta(alvo, NIVEIS[ordem])
+            sql, params = construir_consulta(alvo, niveis_para(alvo)[ordem])
             return {r[0] for r in conn.execute(
                 f"SELECT DISTINCT {coluna} FROM paciente_perfil WHERE id IN ({sql})", params)}
         finally:
@@ -327,9 +327,9 @@ class TestAnaliseControlada(ComBanco):
 
         self.assertEqual(subs[3], [
             {"criterio": "comorbidades clínicas", "valor_informado": "E66.9",
-             "valor_usado": "não filtradas"},
+             "valor_usado": "qualquer comorbidade"},
             {"criterio": "comorbidades psiquiátricas", "valor_informado": "F41.1",
-             "valor_usado": "não filtradas"},
+             "valor_usado": "qualquer comorbidade"},
             {"criterio": "faixa etária", "valor_informado": "26 a 35 anos",
              "valor_usado": "18 a 50 anos"},
         ])
@@ -351,13 +351,32 @@ class TestAnaliseControlada(ComBanco):
         self.assertIs(cid["grupo_amplia"], True)
         self.assertEqual(self.coorte(alvo, 4, "cid10_principal"), {"F31.3"})
 
+    def test_faixa_de_imc_ganha_degrau_e_aparece_nas_substituicoes(self):
+        perfil = dict(sexo="feminino", faixa_etaria_cod="26_35", cid10_principal="F31.3",
+                      comorbidades=[], faixa_imc_cod="sobrepeso", horizonte_dias=84, n_minimo=20)
+        r = self.analisar(**perfil)
+        self.assertEqual(r.status_code, 200)
+        corpo = r.json()
+        self.assertEqual(corpo["perfil"]["faixa_imc_cod"], "sobrepeso")
+        self.assertEqual(len(corpo["escada"]), 7)
+        subs = {d["ordem"]: d["substituicoes"] for d in corpo["escada"]}
+        self.assertEqual(subs[2], [s for s in subs[2] if s["criterio"] != "faixa de IMC"])
+        self.assertIn({"criterio": "faixa de IMC", "valor_informado": "Sobrepeso (25,0 a 29,9)",
+                       "valor_usado": "Eutrófico (18,5 a 24,9) a Obesidade grau I (30 a 34,9)"}, subs[3])
+
+    def test_faixa_de_imc_desconhecida_e_recusada(self):
+        r = self.analisar(sexo="feminino", faixa_etaria_cod="26_35", cid10_principal="F31.3",
+                          faixa_imc_cod="nao_existe")
+        self.assertEqual(r.status_code, 422)
+        self.assertIn("faixa_imc_cod", [e["campo"] for e in r.json()["detail"]])
+
     def test_grupo_cid_de_codigo_unico_nao_amplia(self):
         subs = self.escada(sexo="masculino", faixa_etaria_cod="18_25", cid10_principal="F90.0",
                            comorbidades=[], horizonte_dias=84, n_minimo=20)
         alvo = PerfilAlvo(hospital_id=HOSPITAL, sexo="masculino", faixa_etaria_cod="18_25",
                           cid10_principal="F90.0")
         self.assertEqual(subs[1], [{"criterio": "comorbidades clínicas",
-                                    "valor_informado": "nenhuma", "valor_usado": "não filtradas"}])
+                                    "valor_informado": "sem comorbidades", "valor_usado": "com ou sem comorbidades"}])
         cid = subs[5][4]
         self.assertEqual(cid["codigos_grupo"], ["F90.0"])
         self.assertIs(cid["grupo_amplia"], False)

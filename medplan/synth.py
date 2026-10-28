@@ -29,6 +29,8 @@ import random
 import sqlite3
 from datetime import date, timedelta
 
+from . import datamart, rotulos
+
 DATA_REFERENCIA_PADRAO = date(2026, 8, 24)
 
 # --- Padrão de prescrição fictício --------------------------------------------
@@ -342,5 +344,95 @@ def gerar(
             if status in ("concluido_sucesso", "em_uso", "perdido_seguimento"):
                 break
 
+    contagem.update(gerar_atendimentos(conn, semente))
     conn.commit()
+    return contagem
+
+
+# --- Atendimentos (Data Mart) ------------------------------------------------------
+# Os tratamentos acima viram consultas: uma no início, retornos a cada 4 a 12 semanas
+# e a última na data da última observação, com o status final. O gerador tem semente
+# própria para não mudar nada do que já era gerado. "Perda de peso" entra com a mesma
+# chance pequena para qualquer medicamento: é só para o painel ter dado, sem padrão.
+P_PERDA_DE_PESO = 0.03
+
+
+def gerar_atendimentos(conn: sqlite3.Connection, semente: int = 42) -> dict[str, int]:
+    rng = random.Random(semente + 1)
+    datamart.carregar_dimensoes(conn)
+
+    sk_faixa = {r["codigo"]: datamart.sk_faixa_etaria(conn, r["codigo"]) for r in conn.execute("SELECT codigo FROM faixa_etaria")}
+    sk_imc = {r["codigo"]: datamart.sk_faixa_imc(conn, r["codigo"]) for r in conn.execute("SELECT codigo FROM faixa_imc")}
+    sk_imc[None] = datamart.sk_faixa_imc(conn, None)
+    sk_cid = {r["codigo"]: r["sk_cid"] for r in conn.execute("SELECT codigo, sk_cid FROM dim_cid10")}
+    sk_med = {r["id"]: datamart.sk_medicamento(conn, r["id"]) for r in conn.execute("SELECT id FROM medicamento")}
+    sk_status = {codigo: datamart.sk_status(conn, codigo) for codigo in rotulos.STATUS_TRATAMENTO}
+    sk_reacao = {r["id"]: datamart.sk_reacao(conn, r["id"]) for r in conn.execute("SELECT id FROM reacao_adversa")}
+    perda_de_peso = conn.execute("SELECT id FROM reacao_adversa WHERE termo = 'Perda de peso'").fetchone()
+
+    tratamentos = conn.execute(
+        "SELECT pr.id AS prescricao_id, pr.medicamento_id, pr.data_inicio, pr.linha_tratamento,"
+        "       d.id AS desfecho_id, d.status, d.data_ultima_observacao,"
+        "       p.chave_pseudonima, p.sexo, p.faixa_etaria_cod, p.faixa_imc_cod, p.tabagismo, p.cid10_principal,"
+        "       (SELECT COUNT(*) FROM perfil_comorbidade pc WHERE pc.paciente_perfil_id = p.id) AS qtd_comorbidades"
+        "  FROM prescricao pr"
+        "  JOIN desfecho_tratamento d ON d.prescricao_id = pr.id"
+        "  JOIN paciente_perfil p ON p.id = pr.paciente_perfil_id"
+        " ORDER BY p.id, pr.data_inicio"
+    ).fetchall()
+
+    contagem = {"atendimentos": 0, "reacoes_relatadas": 0}
+    for t in tratamentos:
+        inicio = date.fromisoformat(t["data_inicio"])
+        fim = date.fromisoformat(t["data_ultima_observacao"])
+        datas = [inicio]
+        dia = inicio + timedelta(days=rng.randint(28, 84))
+        while dia < fim:
+            datas.append(dia)
+            dia += timedelta(days=rng.randint(28, 84))
+        if fim > inicio:
+            datas.append(fim)
+
+        if perda_de_peso and rng.random() < P_PERDA_DE_PESO:
+            dias = rng.randint(1, max(1, (fim - inicio).days))
+            conn.execute(
+                "INSERT OR IGNORE INTO desfecho_reacao (desfecho_id, reacao_adversa_id, dias_ate_inicio,"
+                " gravidade_observada, levou_descontinuacao) VALUES (?, ?, ?, ?, 0)",
+                (t["desfecho_id"], perda_de_peso["id"], dias, rng.choice(["leve", "moderada"])),
+            )
+        reacoes = conn.execute(
+            "SELECT reacao_adversa_id, dias_ate_inicio, gravidade_observada, levou_descontinuacao"
+            "  FROM desfecho_reacao WHERE desfecho_id = ?", (t["desfecho_id"],)
+        ).fetchall()
+        # cada reação é relatada no primeiro atendimento a partir do seu início
+        por_data: dict[date, list] = {}
+        for r in reacoes:
+            inicio_reacao = inicio + timedelta(days=r["dias_ate_inicio"]) if r["dias_ate_inicio"] is not None else None
+            relato = next((d for d in datas if inicio_reacao is not None and d >= inicio_reacao), datas[-1])
+            por_data.setdefault(relato, []).append((r, inicio_reacao))
+
+        sk_paciente = datamart.sk_paciente(conn, t["chave_pseudonima"], t["sexo"])
+        for i, dia in enumerate(datas):
+            ultimo = i == len(datas) - 1
+            relatadas = por_data.get(dia, [])
+            cur = conn.execute(
+                "INSERT INTO fato_atendimento (sk_paciente, sk_faixa_etaria, sk_faixa_imc, sk_cid_principal,"
+                " sk_medicamento, sk_status, sk_tempo, tabagista, qtd_comorbidades, linha_tratamento,"
+                " dias_observados, qtd_reacoes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (sk_paciente, sk_faixa[t["faixa_etaria_cod"]], sk_imc[t["faixa_imc_cod"]], sk_cid[t["cid10_principal"]],
+                 sk_med[t["medicamento_id"]], sk_status[t["status"] if ultimo else "em_uso"],
+                 datamart.sk_tempo(conn, dia), int(datamart.tabagista(t["tabagismo"])), t["qtd_comorbidades"],
+                 t["linha_tratamento"], (dia - inicio).days, len(relatadas)),
+            )
+            contagem["atendimentos"] += 1
+            for r, inicio_reacao in relatadas:
+                conn.execute(
+                    "INSERT INTO fato_reacao_adversa (sk_atendimento, sk_reacao, sk_medicamento,"
+                    " sk_tempo_inicio_medicamento, sk_tempo_inicio_reacao, dias_ate_reacao,"
+                    " gravidade_observada, levou_descontinuacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (cur.lastrowid, sk_reacao[r["reacao_adversa_id"]], sk_med[t["medicamento_id"]],
+                     datamart.sk_tempo(conn, inicio), datamart.sk_tempo(conn, inicio_reacao),
+                     r["dias_ate_inicio"], r["gravidade_observada"], r["levou_descontinuacao"]),
+                )
+                contagem["reacoes_relatadas"] += 1
     return contagem

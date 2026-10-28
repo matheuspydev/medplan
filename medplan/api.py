@@ -24,8 +24,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import Field
 
-from . import db, engine, rotulos
-from .matching import NIVEIS, Nivel, PerfilAlvo
+from . import atendimento, carga, catalogo, db, engine, paineis, rotulos
+from . import matching
+from .matching import Nivel, PerfilAlvo, construir_consulta, niveis_para
 from .registro import (
     FILTRO_DIAGNOSTICO,
     HOSPITAL_ID,
@@ -38,7 +39,7 @@ from .registro import (
     validar,
     validar_perfil,
 )
-from .stats import HORIZONTE_PADRAO_DIAS, ResultadoHorizonte, ic_wilson
+from .stats import HORIZONTE_PADRAO_DIAS, ResultadoHorizonte, com_ic, ic_wilson
 
 WEB_DIST = db.RAIZ / "web" / "dist"
 
@@ -87,6 +88,8 @@ class AnaliseEntrada(Entrada):
     faixa_etaria_cod: str
     cid10_principal: str
     comorbidades: list[str] = []
+    # Opcional: informada, a escada ganha o degrau de IMC (ver matching.niveis_para).
+    faixa_imc_cod: str | None = None
     horizonte_dias: int = Field(default=HORIZONTE_PADRAO_DIAS,
                                 ge=HORIZONTE_MIN_DIAS, le=HORIZONTE_MAX_DIAS)
     n_minimo: int = Field(default=engine.N_MINIMO_PADRAO, ge=N_MINIMO_MIN, le=N_MINIMO_MAX)
@@ -103,28 +106,13 @@ def _conectar():
 # =============================================================================
 # Serialização da análise
 # =============================================================================
-def _pct(x: float) -> int:
-    """Percentual inteiro com o critério do motor (1/8 vira 12, não 13)."""
-    return int(format(x, ".0%")[:-1])
-
-
-def _com_ic(valor: float, ic: tuple[float, float]) -> dict:
-    return {
-        "pct": _pct(valor),
-        "ic_inferior": ic[0],
-        "ic_superior": ic[1],
-        "ic_inferior_pct": _pct(ic[0]),
-        "ic_superior_pct": _pct(ic[1]),
-    }
-
-
 def _motivos(r: ResultadoHorizonte) -> list[dict]:
     itens = []
     for motivo, rotulo in rotulos.MOTIVO_DESCONTINUACAO.items():
         n = r.eventos_por_motivo.get(motivo, 0)
         taxa = r.taxa_motivo(motivo)
         itens.append({"motivo": motivo, "rotulo": rotulo, "n": n, "n_base": r.n_avaliavel,
-                      "taxa": taxa, **_com_ic(taxa, ic_wilson(n, r.n_avaliavel))})
+                      "taxa": taxa, **com_ic(taxa, ic_wilson(n, r.n_avaliavel))})
     return itens
 
 
@@ -139,7 +127,7 @@ def _recomendado(posicao: int, linha: engine.LinhaMedicamento) -> dict:
         "n_episodios": linha.n_episodios,
         "permanencia": {
             "taxa": r.taxa_permanencia,
-            **_com_ic(r.taxa_permanencia, r.ic_permanencia),
+            **com_ic(r.taxa_permanencia, r.ic_permanencia),
             "n_base": r.n_avaliavel,
             "n_avaliavel": r.n_avaliavel,
             "n_retidos": r.n_retidos,
@@ -153,7 +141,7 @@ def _recomendado(posicao: int, linha: engine.LinhaMedicamento) -> dict:
                 "n": ra.n,
                 "n_base": ra.n_base,
                 "proporcao": ra.proporcao,
-                **_com_ic(ra.proporcao, ra.ic),
+                **com_ic(ra.proporcao, ra.ic),
                 "mediana_dias_ate_inicio": (
                     float(ra.mediana_dias_ate_inicio)
                     if ra.mediana_dias_ate_inicio is not None else None
@@ -178,43 +166,58 @@ def _sem_dados(linha: engine.LinhaMedicamento) -> dict:
     }
 
 
+def _faixa_ampliada(conn: sqlite3.Connection, tabela: str, codigo: str) -> tuple[str, str]:
+    """(rótulo informado, linhas das faixas adjacentes) — a mesma subconsulta de matching."""
+    faixas = conn.execute(
+        f"SELECT * FROM {tabela} WHERE ordem BETWEEN "
+        f" (SELECT ordem - 1 FROM {tabela} WHERE codigo = ?) AND "
+        f" (SELECT ordem + 1 FROM {tabela} WHERE codigo = ?) ORDER BY ordem",
+        (codigo, codigo),
+    ).fetchall()
+    informado = next(f["rotulo"] for f in faixas if f["codigo"] == codigo)
+    return informado, faixas
+
+
 def _substituicoes(conn: sqlite3.Connection, alvo: PerfilAlvo, nivel: Nivel) -> list[dict]:
     """O que o degrau deixou de exigir e o que usou no lugar.
 
-    Espelha matching.construir_consulta degrau a degrau (mesmos limiares de
-    ordem e mesmas subconsultas de faixa adjacente e grupo CID).
+    Espelha matching.construir_consulta critério a critério (mesmas subconsultas
+    de faixa adjacente e grupo CID).
     """
     psiq = alvo.comorbidades_psiquiatricas
     clinicas = tuple(c for c in alvo.comorbidades if c not in psiq)
     itens = []
 
-    if nivel.ordem >= 1:
-        itens.append({"criterio": "comorbidades clínicas",
-                      "valor_informado": ", ".join(clinicas) or "nenhuma",
-                      "valor_usado": "não filtradas"})
-    if nivel.ordem >= 2:
-        itens.append({"criterio": "comorbidades psiquiátricas",
-                      "valor_informado": ", ".join(psiq) or "nenhuma",
-                      "valor_usado": "não filtradas"})
-    if nivel.ordem >= 3:
-        faixas = conn.execute(
-            "SELECT codigo, rotulo, idade_min, idade_max, ordem FROM faixa_etaria WHERE ordem BETWEEN "
-            " (SELECT ordem - 1 FROM faixa_etaria WHERE codigo = ?) AND "
-            " (SELECT ordem + 1 FROM faixa_etaria WHERE codigo = ?) ORDER BY ordem",
-            (alvo.faixa_etaria_cod, alvo.faixa_etaria_cod),
-        ).fetchall()
+    def comorbidades(informadas: tuple[str, ...]) -> tuple[str, str]:
+        # Sem comorbidade informada, o perfil completo exige pacientes SEM comorbidade;
+        # ao afrouxar, entram pacientes com comorbidade. A tela precisa dizer isso.
+        if informadas:
+            return ", ".join(informadas), "qualquer comorbidade"
+        return "sem comorbidades", "com ou sem comorbidades"
+
+    if nivel.relaxa(matching.COMORBIDADES_CLINICAS):
+        informado, usado = comorbidades(clinicas)
+        itens.append({"criterio": "comorbidades clínicas", "valor_informado": informado, "valor_usado": usado})
+    if nivel.relaxa(matching.COMORBIDADES_PSIQUIATRICAS):
+        informado, usado = comorbidades(psiq)
+        itens.append({"criterio": "comorbidades psiquiátricas", "valor_informado": informado, "valor_usado": usado})
+    if alvo.faixa_imc_cod and nivel.relaxa(matching.FAIXA_IMC_EXATA):
+        informado, faixas = _faixa_ampliada(conn, "faixa_imc", alvo.faixa_imc_cod)
+        itens.append({"criterio": "faixa de IMC", "valor_informado": informado,
+                      "valor_usado": " a ".join(dict.fromkeys([faixas[0]["rotulo"], faixas[-1]["rotulo"]]))})
+    if nivel.relaxa(matching.FAIXA_ETARIA_EXATA):
+        informado, faixas = _faixa_ampliada(conn, "faixa_etaria", alvo.faixa_etaria_cod)
         ultima_ordem = conn.execute("SELECT MAX(ordem) FROM faixa_etaria").fetchone()[0]
         if faixas[-1]["ordem"] == ultima_ordem:
             usado = f"{faixas[0]['idade_min']} anos ou mais"
         else:
             usado = f"{faixas[0]['idade_min']} a {faixas[-1]['idade_max']} anos"
-        informado = next(f["rotulo"] for f in faixas if f["codigo"] == alvo.faixa_etaria_cod)
         itens.append({"criterio": "faixa etária", "valor_informado": informado,
                       "valor_usado": usado})
-    if nivel.ordem >= 4:
+    if nivel.relaxa(matching.SEXO):
         itens.append({"criterio": "sexo", "valor_informado": rotulos.SEXO[alvo.sexo].lower(),
                       "valor_usado": "todos"})
-    if nivel.ordem >= 5:
+    if nivel.relaxa(matching.CID_EXATO):
         grupo = conn.execute("SELECT grupo FROM cid10 WHERE codigo = ?",
                              (alvo.cid10_principal,)).fetchone()["grupo"]
         codigos = [
@@ -319,6 +322,10 @@ def base():
 def analisar(entrada: AnaliseEntrada):
     with _conectar() as conn:
         erros = validar_perfil(conn, entrada)
+        if entrada.faixa_imc_cod is not None and conn.execute(
+            "SELECT 1 FROM faixa_imc WHERE codigo = ?", (entrada.faixa_imc_cod,)
+        ).fetchone() is None:
+            erros.append({"campo": "faixa_imc_cod", "mensagem": "Faixa de IMC não encontrada no catálogo."})
         if erros:
             raise ErroValidacao(erros)
 
@@ -328,11 +335,16 @@ def analisar(entrada: AnaliseEntrada):
             faixa_etaria_cod=entrada.faixa_etaria_cod,
             cid10_principal=entrada.cid10_principal,
             comorbidades=tuple(entrada.comorbidades),
+            faixa_imc_cod=entrada.faixa_imc_cod,
         )
         rec = engine.recomendar(conn, alvo, n_minimo=entrada.n_minimo,
                                 horizonte_dias=entrada.horizonte_dias)
         degraus = engine.diagnosticar_escada(conn, alvo, horizonte_dias=entrada.horizonte_dias)
-        substituicoes = {n.ordem: _substituicoes(conn, alvo, n) for n in NIVEIS}
+        sql_coorte, params_coorte = construir_consulta(alvo, rec.nivel)
+        chaves_coorte = {r[0] for r in conn.execute(
+            f"SELECT chave_pseudonima FROM paciente_perfil WHERE id IN ({sql_coorte})", params_coorte)}
+        frequencia = paineis.frequencia_prescricao(paineis.Base(conn), chaves_coorte, entrada.n_minimo)
+        substituicoes = {n.ordem: _substituicoes(conn, alvo, n) for n in niveis_para(alvo)}
         n_perfis_base = conn.execute(
             "SELECT COUNT(*) FROM paciente_perfil WHERE hospital_id = ?", (HOSPITAL_ID,)
         ).fetchone()[0]
@@ -346,6 +358,7 @@ def analisar(entrada: AnaliseEntrada):
             "faixa_etaria_cod": entrada.faixa_etaria_cod,
             "cid10_principal": entrada.cid10_principal,
             "comorbidades": entrada.comorbidades,
+            "faixa_imc_cod": entrada.faixa_imc_cod,
         },
         "horizonte_dias": rec.horizonte_dias,
         "n_minimo": rec.n_minimo,
@@ -365,6 +378,7 @@ def analisar(entrada: AnaliseEntrada):
         ],
         "avisos": _avisos(rec, total_censurado),
         "total_censurado": total_censurado,
+        "frequencia_prescricao": frequencia,
         "proveniencia": {
             "sintetico": DADOS_SINTETICOS,
             "n_perfis_base": n_perfis_base,
@@ -382,6 +396,176 @@ def registrar_caso(caso: CasoEntrada):
         if erros:
             raise ErroValidacao(erros)
         return {**registrar(conn, caso), "alertas": alertas}
+
+
+# =============================================================================
+# Painéis (Data Mart)
+#
+# POST com corpo, como a análise: filtros de perfil e chave pseudônima não vão para a URL
+# (que chega a logs e ao histórico do navegador).
+# =============================================================================
+class FiltrosEntrada(Entrada):
+    sexo: Literal[tuple(rotulos.SEXO)] | None = None
+    faixa_etaria_cod: str | None = None
+    # código CID-10 ou grupo, ex. "F30-F39"
+    diagnostico: str | None = None
+    faixa_imc_cod: str | None = None
+    tabagista: bool | None = None
+    # quantidade de comorbidades; 3 = "3 ou mais"
+    comorbidades: int | None = Field(default=None, ge=0, le=3)
+
+    def para_painel(self) -> paineis.Filtros:
+        return paineis.Filtros(self.sexo, self.faixa_etaria_cod, self.diagnostico, self.faixa_imc_cod,
+                               self.tabagista, self.comorbidades)
+
+
+class _ComFiltros(Entrada):
+    filtros: FiltrosEntrada = FiltrosEntrada()
+    n_minimo: int = Field(default=engine.N_MINIMO_PADRAO, ge=N_MINIMO_MIN, le=N_MINIMO_MAX)
+
+
+class VisaoGeralEntrada(_ComFiltros):
+    horizonte_dias: int = Field(default=HORIZONTE_PADRAO_DIAS, ge=HORIZONTE_MIN_DIAS, le=HORIZONTE_MAX_DIAS)
+    dividir_por: Literal[paineis.DIVISOES] = "faixa"
+
+
+class PacientesEntrada(Entrada):
+    q: str | None = Field(default=None, max_length=60)
+    sexo: Literal[tuple(rotulos.SEXO)] | None = None
+    faixa_etaria_cod: str | None = None
+    grupo: str | None = None
+    pagina: int = Field(default=1, ge=1)
+    por_pagina: int = Field(default=20, ge=1, le=100)
+
+
+class PacienteEntrada(Entrada):
+    chave_pseudonima: str = Field(max_length=32)
+
+
+class FichaMedicamentoEntrada(_ComFiltros):
+    medicamento_id: int
+    horizonte_dias: int = Field(default=HORIZONTE_PADRAO_DIAS, ge=HORIZONTE_MIN_DIAS, le=HORIZONTE_MAX_DIAS)
+
+
+class ReacoesEntrada(_ComFiltros):
+    medicamento_id: int | None = None
+    linha: Literal[tuple(c for c, _ in paineis.LINHAS)] | None = None
+
+
+class PesoImcEntrada(_ComFiltros):
+    medicamento_id: int
+
+
+def _validar_filtros(conn: sqlite3.Connection, f: FiltrosEntrada) -> paineis.Filtros:
+    erros = []
+    if f.faixa_etaria_cod and conn.execute("SELECT 1 FROM faixa_etaria WHERE codigo = ?", (f.faixa_etaria_cod,)).fetchone() is None:
+        erros.append({"campo": "filtros.faixa_etaria_cod", "mensagem": "Faixa etária não encontrada no catálogo."})
+    if f.faixa_imc_cod and conn.execute("SELECT 1 FROM faixa_imc WHERE codigo = ?", (f.faixa_imc_cod,)).fetchone() is None:
+        erros.append({"campo": "filtros.faixa_imc_cod", "mensagem": "Faixa de IMC não encontrada no catálogo."})
+    if f.diagnostico and conn.execute("SELECT 1 FROM cid10 WHERE codigo = ? OR grupo = ?",
+                                      (f.diagnostico, f.diagnostico)).fetchone() is None:
+        erros.append({"campo": "filtros.diagnostico", "mensagem": "Código ou grupo CID-10 não encontrado no catálogo."})
+    if erros:
+        raise ErroValidacao(erros)
+    return f.para_painel()
+
+
+def _medicamento_existe(conn: sqlite3.Connection, medicamento_id: int) -> None:
+    if conn.execute("SELECT 1 FROM medicamento WHERE id = ?", (medicamento_id,)).fetchone() is None:
+        raise HTTPException(404, "Medicamento não encontrado no catálogo.")
+
+
+@router.post("/paineis/visao-geral")
+def visao_geral(e: VisaoGeralEntrada):
+    with _conectar() as conn:
+        filtros = _validar_filtros(conn, e.filtros)
+        return paineis.visao_geral(paineis.Base(conn), filtros, e.horizonte_dias, e.n_minimo, e.dividir_por)
+
+
+@router.post("/paineis/pacientes")
+def listar_pacientes(e: PacientesEntrada):
+    with _conectar() as conn:
+        return paineis.pacientes(paineis.Base(conn), e.q, e.sexo, e.faixa_etaria_cod, e.grupo, e.pagina, e.por_pagina)
+
+
+@router.post("/paineis/paciente")
+def ficha_paciente(e: PacienteEntrada):
+    with _conectar() as conn:
+        ficha = paineis.paciente(paineis.Base(conn), e.chave_pseudonima)
+    if ficha is None:
+        raise HTTPException(404, "Nenhum atendimento registrado para esta chave.")
+    return ficha
+
+
+@router.post("/paineis/medicamento")
+def ficha_medicamento(e: FichaMedicamentoEntrada):
+    with _conectar() as conn:
+        _medicamento_existe(conn, e.medicamento_id)
+        filtros = _validar_filtros(conn, e.filtros)
+        return paineis.ficha_medicamento(paineis.Base(conn), e.medicamento_id, filtros, e.horizonte_dias, e.n_minimo)
+
+
+@router.post("/paineis/reacoes")
+def resumo_reacoes(e: ReacoesEntrada):
+    with _conectar() as conn:
+        if e.medicamento_id is not None:
+            _medicamento_existe(conn, e.medicamento_id)
+        filtros = _validar_filtros(conn, e.filtros)
+        return paineis.reacoes_resumo(paineis.Base(conn), filtros, e.medicamento_id, e.linha, e.n_minimo)
+
+
+@router.post("/paineis/peso-por-imc")
+def peso_por_imc(e: PesoImcEntrada):
+    with _conectar() as conn:
+        _medicamento_existe(conn, e.medicamento_id)
+        filtros = _validar_filtros(conn, e.filtros)
+        ids_termo = {r["termo"]: r["id"] for r in conn.execute("SELECT id, termo FROM reacao_adversa")}
+        return paineis.peso_por_imc(paineis.Base(conn), e.medicamento_id, filtros, e.n_minimo, ids_termo)
+
+
+@router.post("/atendimentos", status_code=201)
+def registrar_atendimento(entrada: atendimento.AtendimentoEntrada):
+    with _conectar() as conn:
+        erros = atendimento.validar(conn, entrada, date.today())
+        if erros:
+            raise ErroValidacao(erros)
+        return atendimento.registrar(conn, entrada)
+
+
+# =============================================================================
+# Qualidade dos dados: cargas de CSV e lista de referência de medicamentos
+# =============================================================================
+@router.post("/cargas", status_code=201)
+def enviar_carga(entrada: carga.CargaEntrada):
+    erros = carga.validar(entrada)
+    if erros:
+        raise ErroValidacao(erros)
+    with _conectar() as conn:
+        return carga.processar(conn, entrada, date.today())
+
+
+@router.get("/qualidade")
+def qualidade():
+    with _conectar() as conn:
+        return carga.qualidade(conn)
+
+
+@router.get("/qualidade/cargas/{carga_id}")
+def detalhe_carga(carga_id: int):
+    with _conectar() as conn:
+        d = carga.detalhe(conn, carga_id)
+    if d is None:
+        raise HTTPException(404, "Carga não encontrada.")
+    return d
+
+
+@router.post("/medicamentos", status_code=201)
+def adicionar_medicamento(entrada: catalogo.MedicamentoEntrada):
+    with _conectar() as conn:
+        erros = catalogo.validar(conn, entrada)
+        if erros:
+            raise ErroValidacao(erros)
+        return catalogo.adicionar(conn, entrada)
 
 
 @router.get("/casos")
