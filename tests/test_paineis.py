@@ -47,7 +47,7 @@ class TestPaineis(ComBanco, InvariantesDeProporcao):
 
     ROTAS = {"/visao-geral": "visao-geral", "/pacientes": "pacientes", "/reacoes/resumo": "reacoes",
              "/reacoes/peso-por-imc": "peso-por-imc"}
-    FILTROS = {"sexo", "faixa_etaria_cod", "diagnostico", "faixa_imc_cod", "tabagista", "data_de", "data_ate"}
+    FILTROS = {"sexo", "faixa_etaria_cod", "diagnostico", "faixa_imc_cod", "data_de", "data_ate"}
 
     def post(self, painel, **corpo):
         return self.cliente.post(f"/api/v1/paineis/{painel}", json=corpo)
@@ -108,6 +108,16 @@ class TestPaineis(ComBanco, InvariantesDeProporcao):
         self.assertEqual(self.post("visao-geral", filtros=invertido).status_code, 422)
         self.assertEqual(self.post("pacientes", **invertido).status_code, 422)
 
+    def test_pacientes_por_faixa_e_por_imc(self):
+        v = self.get("/visao-geral")
+        n = v["contagens"]["n_pacientes"]
+        # cada paciente entra uma vez em cada gráfico
+        self.assertEqual(sum(f["n_pacientes"] for f in v["pacientes_por_faixa"]), n)
+        self.assertEqual(sum(f["n_pacientes"] for f in v["pacientes_por_imc"]), n)
+        self.assertIsNone(v["pacientes_por_imc"][-1]["codigo"])  # "não informado" por último
+        mulheres = self.get("/visao-geral", sexo="feminino")
+        self.assertEqual(sum(f["n_pacientes"] for f in mulheres["pacientes_por_faixa"]), mulheres["contagens"]["n_pacientes"])
+
     def test_tempo_entre_atendimentos(self):
         t = self.get("/visao-geral")["tempo_entre_atendimentos"]
         self.assertGreaterEqual(t["n_intervalos"], 20)
@@ -154,6 +164,7 @@ class TestPaineis(ComBanco, InvariantesDeProporcao):
     def test_filtro_desconhecido_e_recusado(self):
         self.assertEqual(self.post("visao-geral", filtros={"faixa_imc_cod": "nao_existe"}).status_code, 422)
         self.assertEqual(self.post("visao-geral", filtros={"comorbidades": 1}).status_code, 422)
+        self.assertEqual(self.post("visao-geral", filtros={"tabagista": True}).status_code, 422)
         self.assertEqual(self.post("visao-geral", filtros={"nome": "x"}).status_code, 422)
 
     # ---- pacientes ------------------------------------------------------------------

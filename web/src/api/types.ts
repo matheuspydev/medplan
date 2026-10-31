@@ -303,7 +303,6 @@ export interface FiltrosGlobais {
   faixa_etaria_cod?: string;
   diagnostico?: string;
   faixa_imc_cod?: string;
-  tabagista?: boolean;
   data_de?: string;
   data_ate?: string;
 }
@@ -325,6 +324,10 @@ export interface VisaoGeral {
     ic_inferior_dias?: number;
     ic_superior_dias?: number;
   };
+  /** Pacientes por faixa do atendimento mais recente no recorte (cada um uma vez), na ordem do catálogo. */
+  pacientes_por_faixa: { codigo: string; rotulo: string; n_pacientes: number }[];
+  /** Idem por faixa de IMC; a última linha (codigo null) é "IMC não informado". */
+  pacientes_por_imc: { codigo: string | null; rotulo: string; n_pacientes: number }[];
   recentes: PacienteResumo[];
 }
 

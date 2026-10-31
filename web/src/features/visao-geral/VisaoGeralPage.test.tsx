@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { VisaoGeral } from '../../api/types';
 import { montarPainel, proporcao } from '../../lib/teste-paineis';
@@ -23,6 +23,14 @@ const visao: VisaoGeral = {
   },
   motivos: [{ ...proporcao(15, 30, 50, [33, 67]), motivo: 'desc_reacao_adversa', rotulo: 'Reação adversa' }],
   tempo_entre_atendimentos: { n_intervalos: 180, n_pacientes: 90, media_dias: 30.5, ic_inferior_dias: 28.2, ic_superior_dias: 32.8 },
+  pacientes_por_faixa: [
+    { codigo: '18_25', rotulo: '18 a 25 anos', n_pacientes: 50 },
+    { codigo: '26_35', rotulo: '26 a 35 anos', n_pacientes: 70 },
+  ],
+  pacientes_por_imc: [
+    { codigo: 'eutrofico', rotulo: 'Eutrófico (18,5 a 24,9)', n_pacientes: 80 },
+    { codigo: null, rotulo: 'IMC não informado', n_pacientes: 40 },
+  ],
   recentes: [
     {
       chave_pseudonima: 'REG-TESTE01',
@@ -45,6 +53,14 @@ describe('Visão geral', () => {
     expect(corpos).toEqual([{ caminho: '/paineis/visao-geral', corpo: { filtros: {} } }]);
     expect(screen.getByText('Apoio à decisão. Não é prescrição.')).toBeTruthy();
     expect(screen.queryByText('Qual classe é prescrita em cada grupo de pacientes?')).toBeNull();
+  });
+
+  it('gráficos de pacientes por faixa etária e por IMC, na ordem recebida', async () => {
+    montarPainel(<VisaoGeralPage />, { '/paineis/visao-geral': visao });
+    const faixas = await screen.findByRole('list', { name: 'Pacientes por faixa etária' });
+    expect(within(faixas).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['18 a 25 anos50', '26 a 35 anos70']);
+    const imc = screen.getByRole('list', { name: 'Pacientes por faixa de IMC' });
+    expect(within(imc).getByText('IMC não informado')).toBeTruthy();
   });
 
   it('tempo médio entre atendimentos com n e IC; abaixo do n mínimo, sem média', async () => {

@@ -123,18 +123,6 @@ export function BarraFiltros({ ativos }: { ativos: boolean }) {
               ))}
             </select>
           </label>
-          <label className="painel-filtros__campo">
-            <span>Tabagista</span>
-            <select
-              className="controle-texto"
-              value={filtros.tabagista === undefined ? '' : String(filtros.tabagista)}
-              onChange={(e) => mudar('tabagista', e.target.value === '' ? undefined : e.target.value === 'true')}
-            >
-              <option value="">Todos</option>
-              <option value="true">Sim</option>
-              <option value="false">Não</option>
-            </select>
-          </label>
           <div className="painel-filtros__campo painel-filtros__campo--largo">
             <span>Data do atendimento</span>
             <CampoPeriodo valor={filtros} onChange={mudarPeriodo} anos={anosDoPeriodo(referencias.periodo_atendimentos)} />

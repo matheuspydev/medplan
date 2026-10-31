@@ -109,9 +109,11 @@ describe('shell', () => {
     await esperarCatalogo();
     expect(screen.getByText('Sem filtros: base inteira')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Filtros' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Tabagista' }), { target: { value: 'true' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Recortar período por' }), { target: { value: 'ano' } });
+    const ano = String(new Date().getFullYear()); // catálogo sem atendimentos: só o ano corrente
+    fireEvent.change(screen.getByRole('combobox', { name: 'Ano' }), { target: { value: ano } });
     expect(screen.queryByText('Sem filtros: base inteira')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Remover filtro Tabagista' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remover filtro Período' }));
     expect(screen.getByText('Sem filtros: base inteira')).toBeTruthy();
 
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('link', { name: 'Pacientes' }));

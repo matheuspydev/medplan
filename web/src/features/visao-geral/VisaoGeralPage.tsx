@@ -146,6 +146,21 @@ function Conteudo({ v }: { v: VisaoGeral }) {
           </table>
         </div>
       </PainelMedicao>
+
+      <div className="grade-cartoes">
+        <PainelMedicao titulo="Pacientes por faixa etária" subtitulo="cada paciente uma vez, pelo atendimento mais recente no recorte">
+          <BarrasHorizontais
+            rotuloAcessivel="Pacientes por faixa etária"
+            itens={v.pacientes_por_faixa.map((f) => ({ chave: f.codigo, rotulo: f.rotulo, valor: f.n_pacientes }))}
+          />
+        </PainelMedicao>
+        <PainelMedicao titulo="Pacientes por faixa de IMC" subtitulo="cada paciente uma vez, pelo atendimento mais recente no recorte">
+          <BarrasHorizontais
+            rotuloAcessivel="Pacientes por faixa de IMC"
+            itens={v.pacientes_por_imc.map((f) => ({ chave: f.codigo ?? 'nao_informado', rotulo: f.rotulo, valor: f.n_pacientes }))}
+          />
+        </PainelMedicao>
+      </div>
     </>
   );
 }

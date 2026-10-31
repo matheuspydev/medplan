@@ -51,7 +51,6 @@ class Filtros:
     faixa_etaria_cod: str | None = None
     diagnostico: str | None = None
     faixa_imc_cod: str | None = None
-    tabagista: bool | None = None
     data_de: date | None = None
     data_ate: date | None = None
 
@@ -61,7 +60,6 @@ class Filtros:
             and (self.faixa_etaria_cod is None or "faixa" in ignorar or a.faixa_etaria_cod == self.faixa_etaria_cod)
             and (self.diagnostico is None or self.diagnostico in (a.cid10, a.grupo_cid))
             and (self.faixa_imc_cod is None or "imc" in ignorar or a.faixa_imc_cod == self.faixa_imc_cod)
-            and (self.tabagista is None or "tabagismo" in ignorar or a.tabagista == self.tabagista)
             and no_periodo(a.data, self.data_de, self.data_ate)
         )
 
@@ -182,6 +180,9 @@ def visao_geral(base: Base, filtros: Filtros, horizonte_dias: int, n_minimo: int
             ultimo_por_paciente[a.chave] = a
     n_por_paciente = Counter(a.chave for a in ats)
     recentes = sorted(ultimo_por_paciente.values(), key=lambda a: (a.data, a.sk_atendimento), reverse=True)[:5]
+    # cada paciente uma vez, pela faixa do atendimento mais recente no recorte
+    por_faixa = Counter(a.faixa_etaria_cod for a in ultimo_por_paciente.values())
+    por_imc = Counter(a.faixa_imc_cod for a in ultimo_por_paciente.values())
 
     return {
         "horizonte_dias": horizonte_dias,
@@ -212,6 +213,10 @@ def visao_geral(base: Base, filtros: Filtros, horizonte_dias: int, n_minimo: int
         # denominador: os tratamentos descontinuados
         "motivos": _motivos(res.eventos_por_motivo, n_desc, n_minimo),
         "tempo_entre_atendimentos": _tempo_entre_atendimentos(ats, n_minimo),
+        "pacientes_por_faixa": [{"codigo": f["codigo"], "rotulo": f["rotulo"], "n_pacientes": por_faixa.get(f["codigo"], 0)}
+                                for f in base.faixas],
+        "pacientes_por_imc": [{"codigo": c, "rotulo": r, "n_pacientes": por_imc.get(c, 0)}
+                              for c, r in [(f["codigo"], f["rotulo"]) for f in base.imcs] + [(None, datamart.IMC_NAO_INFORMADO)]],
         "recentes": [
             {"chave_pseudonima": a.chave, "sexo": a.sexo, "faixa_etaria_cod": a.faixa_etaria_cod,
              "cid10": a.cid10, "descricao_cid": base.cids[a.cid10], "n_atendimentos": n_por_paciente[a.chave],

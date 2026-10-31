@@ -67,14 +67,14 @@ Convenções do protótipo, pendentes de confirmação com a médica: `tabagista
 **Endpoints dos painéis.** Todos são `POST` com corpo: filtros de perfil e chave do paciente
 nunca vão na URL (não chegam a log de servidor nem ao histórico). Os painéis aceitam os
 filtros globais em `filtros`: `sexo`, `faixa_etaria_cod`, `diagnostico` (código ou grupo),
-`faixa_imc_cod`, `tabagista`, `data_de` e `data_ate` (data do atendimento, ISO, inclusive nas
+`faixa_imc_cod`, `data_de` e `data_ate` (data do atendimento, ISO, inclusive nas
 pontas; a tela escolhe por mês, por ano ou de um dia a outro e manda sempre as duas datas).
 Num tratamento, o período vale para o atendimento mais recente, como os demais filtros. O
 período não chega à Consulta: o motor continua usando a base inteira.
 
 | Rota | O que devolve |
 |---|---|
-| `POST /paineis/visao-geral` | contagens, diagnósticos e medicamentos por volume, desfecho com IC, motivos, tempo médio entre atendimentos do mesmo paciente (n de intervalos e IC95%; abaixo do n mínimo, sem média), pacientes recentes |
+| `POST /paineis/visao-geral` | contagens, diagnósticos e medicamentos por volume, desfecho com IC, motivos, tempo médio entre atendimentos do mesmo paciente (n de intervalos e IC95%; abaixo do n mínimo, sem média), pacientes por faixa etária e por faixa de IMC (cada um uma vez, pelo atendimento mais recente no recorte), pacientes recentes |
 | `POST /paineis/pacientes` | lista com busca sem acento (`q`), filtros próprios (inclusive `data_de`/`data_ate`: só atendimentos do período contam) e paginação |
 | `POST /paineis/paciente` | ficha por `chave_pseudonima`: atendimentos, tratamentos e reações (404 se a chave não tem atendimento) |
 | `POST /paineis/medicamento` | permanência, contabilidade, curva de Kaplan-Meier com IC, quem recebe, reações, permanência por linha e quantos tratamentos estão sem linha informada |

@@ -415,14 +415,13 @@ class FiltrosEntrada(Entrada):
     # código CID-10 ou grupo, ex. "F30-F39"
     diagnostico: str | None = None
     faixa_imc_cod: str | None = None
-    tabagista: bool | None = None
     # data do atendimento, inclusive nas pontas
     data_de: date | None = None
     data_ate: date | None = None
 
     def para_painel(self) -> paineis.Filtros:
         return paineis.Filtros(self.sexo, self.faixa_etaria_cod, self.diagnostico, self.faixa_imc_cod,
-                               self.tabagista, self.data_de, self.data_ate)
+                               self.data_de, self.data_ate)
 
 
 class _ComFiltros(Entrada):

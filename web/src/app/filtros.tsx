@@ -45,7 +45,6 @@ export function fichasDosFiltros(f: FiltrosGlobais, catalogo: Catalogo): { chave
   if (f.faixa_etaria_cod) fichas.push({ chaves: ['faixa_etaria_cod'], rotulo: 'Faixa', valor: catalogo.faixaEtaria(f.faixa_etaria_cod)?.rotulo ?? f.faixa_etaria_cod });
   if (f.diagnostico) fichas.push({ chaves: ['diagnostico'], rotulo: 'Diagnóstico', valor: f.diagnostico });
   if (f.faixa_imc_cod) fichas.push({ chaves: ['faixa_imc_cod'], rotulo: 'IMC', valor: catalogo.faixaImc(f.faixa_imc_cod)?.rotulo ?? f.faixa_imc_cod });
-  if (f.tabagista !== undefined) fichas.push({ chaves: ['tabagista'], rotulo: 'Tabagista', valor: f.tabagista ? 'Sim' : 'Não' });
   if (f.data_de || f.data_ate) fichas.push({ chaves: ['data_de', 'data_ate'], rotulo: 'Período', valor: descreverPeriodo(f) });
   return fichas;
 }
