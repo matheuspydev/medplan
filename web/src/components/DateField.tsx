@@ -21,6 +21,7 @@ export interface DateFieldProps {
   /** Recebe `incompleta` = havia texto digitado que não forma data válida. */
   onBlur?: (estado: { iso: string | null; incompleta: boolean }) => void;
   disabled?: boolean;
+  'aria-label'?: string;
   'aria-labelledby'?: string;
   'aria-describedby'?: string;
   'aria-invalid'?: true;

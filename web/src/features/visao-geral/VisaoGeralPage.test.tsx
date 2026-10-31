@@ -1,7 +1,7 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { VisaoGeral } from '../../api/types';
-import { insuficiente, montarPainel, proporcao } from '../../lib/teste-paineis';
+import { montarPainel, proporcao } from '../../lib/teste-paineis';
 import VisaoGeralPage from './VisaoGeralPage';
 
 // SINTÉTICO: números de layout, sem significado clínico.
@@ -22,12 +22,7 @@ const visao: VisaoGeral = {
     descontinuado: proporcao(30, 100, 30, [22, 40]),
   },
   motivos: [{ ...proporcao(15, 30, 50, [33, 67]), motivo: 'desc_reacao_adversa', rotulo: 'Reação adversa' }],
-  classe_por_grupo: {
-    dividir_por: 'faixa',
-    fixados_por_filtro: [],
-    classes: ['Classe sintética'],
-    linhas: [{ rotulo: '26 a 35 anos', n_atendimentos: 12, celulas: [{ ...insuficiente(12), classe: 'Classe sintética', n_atendimentos_classe: 12 }] }],
-  },
+  tempo_entre_atendimentos: { n_intervalos: 180, n_pacientes: 90, media_dias: 30.5, ic_inferior_dias: 28.2, ic_superior_dias: 32.8 },
   recentes: [
     {
       chave_pseudonima: 'REG-TESTE01',
@@ -47,17 +42,22 @@ describe('Visão geral', () => {
   it('toda proporção com n e IC; abaixo do n mínimo, "dados insuficientes" sem percentual', async () => {
     const corpos = montarPainel(<VisaoGeralPage />, { '/paineis/visao-geral': visao });
     expect(await screen.findByRole('img', { name: '70 por cento; n igual a 100; intervalo de confiança de 95 por cento de 60 a 78 por cento' })).toBeTruthy();
-    expect(corpos).toEqual([{ caminho: '/paineis/visao-geral', corpo: { filtros: {}, dividir_por: 'faixa' } }]);
+    expect(corpos).toEqual([{ caminho: '/paineis/visao-geral', corpo: { filtros: {} } }]);
     expect(screen.getByText('Apoio à decisão. Não é prescrição.')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: '26 a 35 anos, Classe sintética: 12 de 12 atendimentos' }));
-    expect(screen.getByRole('img', { name: 'dados insuficientes; n igual a 12' })).toBeTruthy();
+    expect(screen.queryByText('Qual classe é prescrita em cada grupo de pacientes?')).toBeNull();
   });
 
-  it('trocar a divisão refaz o pedido', async () => {
-    const corpos = montarPainel(<VisaoGeralPage />, { '/paineis/visao-geral': visao });
-    await screen.findByText('Qual classe é prescrita em cada grupo de pacientes?');
-    fireEvent.click(screen.getByRole('radio', { name: 'Sexo' }));
-    await vi.waitFor(() => expect(corpos.at(-1)?.corpo).toEqual({ filtros: {}, dividir_por: 'sexo' }));
+  it('tempo médio entre atendimentos com n e IC; abaixo do n mínimo, sem média', async () => {
+    montarPainel(<VisaoGeralPage />, { '/paineis/visao-geral': visao });
+    expect(await screen.findByText('30,5 d')).toBeTruthy();
+    expect(screen.getByText(/n=180 intervalos, IC95% 28,2 d a 32,8 d/)).toBeTruthy();
+    expect(screen.queryByText('Tratamentos')).toBeNull();
+  });
+
+  it('tempo médio abaixo do n mínimo mostra "dados insuficientes"', async () => {
+    const pouco = { ...visao, tempo_entre_atendimentos: { n_intervalos: 7, n_pacientes: 5, media_dias: null } };
+    montarPainel(<VisaoGeralPage />, { '/paineis/visao-geral': pouco });
+    expect(await screen.findByText('dados insuficientes')).toBeTruthy();
+    expect(screen.getByText('n=7 intervalos (mínimo 20)')).toBeTruthy();
   });
 });

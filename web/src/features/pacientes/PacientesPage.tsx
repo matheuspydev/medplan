@@ -10,6 +10,7 @@ import { rotuloGrupoCid, useCatalogo } from '../../api/referencias';
 import type { Sexo } from '../../api/types';
 import { fragmentoChave, LinkRota } from '../../app/rotas';
 import { Button } from '../../components/Button';
+import { anosDoPeriodo, CampoPeriodo, type Periodo } from '../../components/CampoPeriodo';
 import { EstadoApi } from '../../components/EstadoApi';
 import { RotuloFaixa } from '../../components/RotuloFaixa';
 import { formatarData, formatarInteiro, inicialMaiuscula } from '../../lib/format';
@@ -26,6 +27,7 @@ export default function PacientesPage() {
   const [sexo, setSexo] = useState<Sexo | ''>('');
   const [faixa, setFaixa] = useState('');
   const [grupo, setGrupo] = useState('');
+  const [periodo, setPeriodo] = useState<Periodo>({});
   const [pagina, setPagina] = useState(1);
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export default function PacientesPage() {
     sexo: sexo || undefined,
     faixa_etaria_cod: faixa || undefined,
     grupo: grupo || undefined,
+    ...periodo,
     pagina,
     por_pagina: POR_PAGINA,
   };
@@ -99,6 +102,13 @@ export default function PacientesPage() {
               </option>
             ))}
           </select>
+          {catalogo && (
+            <CampoPeriodo
+              valor={periodo}
+              onChange={(p) => (setPeriodo(p), setPagina(1))}
+              anos={anosDoPeriodo(catalogo.referencias.periodo_atendimentos)}
+            />
+          )}
           {estado.dados && <span className="texto-apoio lista-pacientes__total">{formatarInteiro(estado.dados.total)} pacientes</span>}
         </div>
 

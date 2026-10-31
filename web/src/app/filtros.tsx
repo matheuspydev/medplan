@@ -6,13 +6,14 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { Catalogo } from '../api/referencias';
 import type { FiltrosGlobais } from '../api/types';
+import { descreverPeriodo } from '../components/CampoPeriodo';
 
 type ChaveFiltro = keyof FiltrosGlobais;
 
 interface ContextoFiltros {
   filtros: FiltrosGlobais;
   definir: (novos: FiltrosGlobais) => void;
-  remover: (chave: ChaveFiltro) => void;
+  remover: (chaves: ChaveFiltro[]) => void;
   limpar: () => void;
 }
 
@@ -20,10 +21,10 @@ const FiltrosContext = createContext<ContextoFiltros | null>(null);
 
 export function FiltrosProvider({ children }: { children: ReactNode }) {
   const [filtros, setFiltros] = useState<FiltrosGlobais>({});
-  const remover = useCallback((chave: ChaveFiltro) => {
+  const remover = useCallback((chaves: ChaveFiltro[]) => {
     setFiltros((atual) => {
       const novo = { ...atual };
-      delete novo[chave];
+      for (const chave of chaves) delete novo[chave];
       return novo;
     });
   }, []);
@@ -37,16 +38,14 @@ export function useFiltros(): ContextoFiltros {
   return ctx;
 }
 
-export const ROTULOS_COMORBIDADES = ['Nenhuma', '1', '2', '3 ou mais'];
-
-/** Fichas removíveis dos filtros ativos, com os rótulos do catálogo. */
-export function fichasDosFiltros(f: FiltrosGlobais, catalogo: Catalogo): { chave: ChaveFiltro; rotulo: string; valor: string }[] {
-  const fichas: { chave: ChaveFiltro; rotulo: string; valor: string }[] = [];
-  if (f.sexo) fichas.push({ chave: 'sexo', rotulo: 'Sexo', valor: catalogo.rotuloOpcao('sexo', f.sexo) });
-  if (f.faixa_etaria_cod) fichas.push({ chave: 'faixa_etaria_cod', rotulo: 'Faixa', valor: catalogo.faixaEtaria(f.faixa_etaria_cod)?.rotulo ?? f.faixa_etaria_cod });
-  if (f.diagnostico) fichas.push({ chave: 'diagnostico', rotulo: 'Diagnóstico', valor: f.diagnostico });
-  if (f.faixa_imc_cod) fichas.push({ chave: 'faixa_imc_cod', rotulo: 'IMC', valor: catalogo.faixaImc(f.faixa_imc_cod)?.rotulo ?? f.faixa_imc_cod });
-  if (f.tabagista !== undefined) fichas.push({ chave: 'tabagista', rotulo: 'Tabagista', valor: f.tabagista ? 'Sim' : 'Não' });
-  if (f.comorbidades !== undefined) fichas.push({ chave: 'comorbidades', rotulo: 'Comorbidades', valor: ROTULOS_COMORBIDADES[f.comorbidades] });
+/** Fichas removíveis dos filtros ativos, com os rótulos do catálogo. O período é uma ficha só. */
+export function fichasDosFiltros(f: FiltrosGlobais, catalogo: Catalogo): { chaves: ChaveFiltro[]; rotulo: string; valor: string }[] {
+  const fichas: { chaves: ChaveFiltro[]; rotulo: string; valor: string }[] = [];
+  if (f.sexo) fichas.push({ chaves: ['sexo'], rotulo: 'Sexo', valor: catalogo.rotuloOpcao('sexo', f.sexo) });
+  if (f.faixa_etaria_cod) fichas.push({ chaves: ['faixa_etaria_cod'], rotulo: 'Faixa', valor: catalogo.faixaEtaria(f.faixa_etaria_cod)?.rotulo ?? f.faixa_etaria_cod });
+  if (f.diagnostico) fichas.push({ chaves: ['diagnostico'], rotulo: 'Diagnóstico', valor: f.diagnostico });
+  if (f.faixa_imc_cod) fichas.push({ chaves: ['faixa_imc_cod'], rotulo: 'IMC', valor: catalogo.faixaImc(f.faixa_imc_cod)?.rotulo ?? f.faixa_imc_cod });
+  if (f.tabagista !== undefined) fichas.push({ chaves: ['tabagista'], rotulo: 'Tabagista', valor: f.tabagista ? 'Sim' : 'Não' });
+  if (f.data_de || f.data_ate) fichas.push({ chaves: ['data_de', 'data_ate'], rotulo: 'Período', valor: descreverPeriodo(f) });
   return fichas;
 }

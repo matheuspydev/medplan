@@ -19,6 +19,7 @@ const referencias = (sinteticos: boolean): Referencias => ({
   faixas_imc: [],
   medicamentos: [],
   reacoes_adversas: [],
+  periodo_atendimentos: { primeiro: null, ultimo: null },
   opcoes: {
     sexo: [],
     tabagismo: [],

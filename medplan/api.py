@@ -283,6 +283,9 @@ def referencias():
             "  FROM medicamento ORDER BY principio_ativo")]
         reacoes = [dict(r) for r in conn.execute(
             "SELECT id, termo, soc, gravidade_padrao FROM reacao_adversa ORDER BY termo")]
+        primeiro, ultimo = conn.execute(
+            "SELECT MIN(t.data), MAX(t.data) FROM fato_atendimento a JOIN dim_tempo t ON t.sk_tempo = a.sk_tempo"
+        ).fetchone()
 
     return {
         "ambiente": {"dados_sinteticos": DADOS_SINTETICOS, "hospital": hospital["nome"]},
@@ -301,6 +304,8 @@ def referencias():
         "faixas_imc": faixas_imc,
         "medicamentos": medicamentos,
         "reacoes_adversas": reacoes,
+        # datas do primeiro e do último atendimento (None sem atendimentos): limites do filtro de período
+        "periodo_atendimentos": {"primeiro": primeiro, "ultimo": ultimo},
         "opcoes": rotulos.opcoes(),
     }
 
@@ -343,7 +348,7 @@ def analisar(entrada: AnaliseEntrada):
         sql_coorte, params_coorte = construir_consulta(alvo, rec.nivel)
         chaves_coorte = {r[0] for r in conn.execute(
             f"SELECT chave_pseudonima FROM paciente_perfil WHERE id IN ({sql_coorte})", params_coorte)}
-        frequencia = paineis.frequencia_prescricao(paineis.Base(conn), chaves_coorte, entrada.n_minimo)
+        frequencia = paineis.frequencia_prescricao(paineis.base_atual(conn), chaves_coorte, entrada.n_minimo)
         substituicoes = {n.ordem: _substituicoes(conn, alvo, n) for n in niveis_para(alvo)}
         n_perfis_base = conn.execute(
             "SELECT COUNT(*) FROM paciente_perfil WHERE hospital_id = ?", (HOSPITAL_ID,)
@@ -411,12 +416,13 @@ class FiltrosEntrada(Entrada):
     diagnostico: str | None = None
     faixa_imc_cod: str | None = None
     tabagista: bool | None = None
-    # quantidade de comorbidades; 3 = "3 ou mais"
-    comorbidades: int | None = Field(default=None, ge=0, le=3)
+    # data do atendimento, inclusive nas pontas
+    data_de: date | None = None
+    data_ate: date | None = None
 
     def para_painel(self) -> paineis.Filtros:
         return paineis.Filtros(self.sexo, self.faixa_etaria_cod, self.diagnostico, self.faixa_imc_cod,
-                               self.tabagista, self.comorbidades)
+                               self.tabagista, self.data_de, self.data_ate)
 
 
 class _ComFiltros(Entrada):
@@ -426,7 +432,6 @@ class _ComFiltros(Entrada):
 
 class VisaoGeralEntrada(_ComFiltros):
     horizonte_dias: int = Field(default=HORIZONTE_PADRAO_DIAS, ge=HORIZONTE_MIN_DIAS, le=HORIZONTE_MAX_DIAS)
-    dividir_por: Literal[paineis.DIVISOES] = "faixa"
 
 
 class PacientesEntrada(Entrada):
@@ -434,6 +439,8 @@ class PacientesEntrada(Entrada):
     sexo: Literal[tuple(rotulos.SEXO)] | None = None
     faixa_etaria_cod: str | None = None
     grupo: str | None = None
+    data_de: date | None = None
+    data_ate: date | None = None
     pagina: int = Field(default=1, ge=1)
     por_pagina: int = Field(default=20, ge=1, le=100)
 
@@ -456,8 +463,14 @@ class PesoImcEntrada(_ComFiltros):
     medicamento_id: int
 
 
+def _erros_periodo(de: date | None, ate: date | None, prefixo: str = "") -> list[dict]:
+    if de and ate and de > ate:
+        return [{"campo": f"{prefixo}data_ate", "mensagem": "A data final é anterior à data inicial."}]
+    return []
+
+
 def _validar_filtros(conn: sqlite3.Connection, f: FiltrosEntrada) -> paineis.Filtros:
-    erros = []
+    erros = _erros_periodo(f.data_de, f.data_ate, "filtros.")
     if f.faixa_etaria_cod and conn.execute("SELECT 1 FROM faixa_etaria WHERE codigo = ?", (f.faixa_etaria_cod,)).fetchone() is None:
         erros.append({"campo": "filtros.faixa_etaria_cod", "mensagem": "Faixa etária não encontrada no catálogo."})
     if f.faixa_imc_cod and conn.execute("SELECT 1 FROM faixa_imc WHERE codigo = ?", (f.faixa_imc_cod,)).fetchone() is None:
@@ -479,19 +492,22 @@ def _medicamento_existe(conn: sqlite3.Connection, medicamento_id: int) -> None:
 def visao_geral(e: VisaoGeralEntrada):
     with _conectar() as conn:
         filtros = _validar_filtros(conn, e.filtros)
-        return paineis.visao_geral(paineis.Base(conn), filtros, e.horizonte_dias, e.n_minimo, e.dividir_por)
+        return paineis.visao_geral(paineis.base_atual(conn), filtros, e.horizonte_dias, e.n_minimo)
 
 
 @router.post("/paineis/pacientes")
 def listar_pacientes(e: PacientesEntrada):
+    if erros := _erros_periodo(e.data_de, e.data_ate):
+        raise ErroValidacao(erros)
     with _conectar() as conn:
-        return paineis.pacientes(paineis.Base(conn), e.q, e.sexo, e.faixa_etaria_cod, e.grupo, e.pagina, e.por_pagina)
+        return paineis.pacientes(paineis.base_atual(conn), e.q, e.sexo, e.faixa_etaria_cod, e.grupo, e.data_de, e.data_ate,
+                                 e.pagina, e.por_pagina)
 
 
 @router.post("/paineis/paciente")
 def ficha_paciente(e: PacienteEntrada):
     with _conectar() as conn:
-        ficha = paineis.paciente(paineis.Base(conn), e.chave_pseudonima)
+        ficha = paineis.paciente(paineis.base_atual(conn), e.chave_pseudonima)
     if ficha is None:
         raise HTTPException(404, "Nenhum atendimento registrado para esta chave.")
     return ficha
@@ -502,7 +518,7 @@ def ficha_medicamento(e: FichaMedicamentoEntrada):
     with _conectar() as conn:
         _medicamento_existe(conn, e.medicamento_id)
         filtros = _validar_filtros(conn, e.filtros)
-        return paineis.ficha_medicamento(paineis.Base(conn), e.medicamento_id, filtros, e.horizonte_dias, e.n_minimo)
+        return paineis.ficha_medicamento(paineis.base_atual(conn), e.medicamento_id, filtros, e.horizonte_dias, e.n_minimo)
 
 
 @router.post("/paineis/reacoes")
@@ -511,7 +527,7 @@ def resumo_reacoes(e: ReacoesEntrada):
         if e.medicamento_id is not None:
             _medicamento_existe(conn, e.medicamento_id)
         filtros = _validar_filtros(conn, e.filtros)
-        return paineis.reacoes_resumo(paineis.Base(conn), filtros, e.medicamento_id, e.linha, e.n_minimo)
+        return paineis.reacoes_resumo(paineis.base_atual(conn), filtros, e.medicamento_id, e.linha, e.n_minimo)
 
 
 @router.post("/paineis/peso-por-imc")
@@ -520,7 +536,7 @@ def peso_por_imc(e: PesoImcEntrada):
         _medicamento_existe(conn, e.medicamento_id)
         filtros = _validar_filtros(conn, e.filtros)
         ids_termo = {r["termo"]: r["id"] for r in conn.execute("SELECT id, termo FROM reacao_adversa")}
-        return paineis.peso_por_imc(paineis.Base(conn), e.medicamento_id, filtros, e.n_minimo, ids_termo)
+        return paineis.peso_por_imc(paineis.base_atual(conn), e.medicamento_id, filtros, e.n_minimo, ids_termo)
 
 
 @router.post("/atendimentos", status_code=201)

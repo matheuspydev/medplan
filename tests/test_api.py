@@ -103,8 +103,10 @@ class TestReferenciasEAnaliseSintetica(ComBanco):
         self.assertEqual(
             set(ref),
             {"ambiente", "clinico_atual", "limites", "diagnosticos", "cid10", "faixas_etarias",
-             "faixas_imc", "medicamentos", "reacoes_adversas", "opcoes"},
+             "faixas_imc", "medicamentos", "reacoes_adversas", "periodo_atendimentos", "opcoes"},
         )
+        periodo = ref["periodo_atendimentos"]
+        self.assertLessEqual(periodo["primeiro"], periodo["ultimo"])
         self.assertIs(ref["ambiente"]["dados_sinteticos"], True)
         self.assertEqual(ref["clinico_atual"]["id"], 1)
         self.assertEqual(set(ref["clinico_atual"]), {"id", "nome", "papel"})

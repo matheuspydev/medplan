@@ -51,6 +51,7 @@ export const REFERENCIAS_TESTE: Referencias = {
   ],
   medicamentos: [],
   reacoes_adversas: [],
+  periodo_atendimentos: { primeiro: '2024-01-10', ultimo: '2026-08-20' },
   opcoes: {
     sexo: [
       { codigo: 'feminino', rotulo: 'Feminino' },

@@ -280,6 +280,9 @@
   color: var(--color-text-secondary);
   font-size: var(--text-caption-size);
 }
+.painel-filtros__campo--largo {
+  grid-column: span 2;
+}
 .painel-filtros__fechar {
   justify-self: start;
 }

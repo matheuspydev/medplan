@@ -98,6 +98,8 @@ export interface Referencias {
   faixas_imc: FaixaCatalogo[];
   medicamentos: Medicamento[];
   reacoes_adversas: ReacaoAdversaCatalogo[];
+  /** Datas ISO do primeiro e do último atendimento da base (null sem atendimentos). */
+  periodo_atendimentos: { primeiro: string | null; ultimo: string | null };
   opcoes: {
     sexo: OpcaoRotulo<Sexo>[];
     tabagismo: OpcaoRotulo<Tabagismo>[];
@@ -295,17 +297,16 @@ export interface FrequenciaPrescricao {
   medicamentos: (ProporcaoPainel & { medicamento_id: number; principio_ativo: string; classe_terapeutica: string })[];
 }
 
-/** Filtros globais. `diagnostico` = código CID-10 ou grupo ("F30-F39"); `comorbidades` 3 = "3 ou mais". */
+/** Filtros globais. `diagnostico` = código CID-10 ou grupo ("F30-F39"); `data_de`/`data_ate` = ISO, inclusive. */
 export interface FiltrosGlobais {
   sexo?: Sexo;
   faixa_etaria_cod?: string;
   diagnostico?: string;
   faixa_imc_cod?: string;
   tabagista?: boolean;
-  comorbidades?: number;
+  data_de?: string;
+  data_ate?: string;
 }
-
-export type DivisaoGrupo = 'faixa' | 'sexo' | 'imc' | 'tabagismo';
 
 export interface VisaoGeral {
   horizonte_dias: number;
@@ -316,11 +317,13 @@ export interface VisaoGeral {
   desfecho: { n_tratamentos: number; n_avaliavel: number; n_censurado: number; mantido: ProporcaoPainel; descontinuado: ProporcaoPainel };
   /** Denominador: os tratamentos descontinuados. */
   motivos: (ProporcaoPainel & { motivo: MotivoDescontinuacao; rotulo: string })[];
-  classe_por_grupo: {
-    dividir_por: DivisaoGrupo;
-    fixados_por_filtro: DivisaoGrupo[];
-    classes: string[];
-    linhas: { rotulo: string; n_atendimentos: number; celulas: (ProporcaoPainel & { classe: string; n_atendimentos_classe: number })[] }[];
+  /** Dias entre datas consecutivas de atendimento do mesmo paciente. Abaixo do n mínimo, media_dias = null e sem IC. */
+  tempo_entre_atendimentos: {
+    n_intervalos: number;
+    n_pacientes: number;
+    media_dias: number | null;
+    ic_inferior_dias?: number;
+    ic_superior_dias?: number;
   };
   recentes: PacienteResumo[];
 }

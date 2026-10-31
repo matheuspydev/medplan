@@ -28,7 +28,7 @@ export default function CompararPage() {
   const catalogo = useCatalogo();
   const { filtros } = useFiltros();
   const chaveFiltros = JSON.stringify(filtros);
-  const volume = useApi((signal) => obterVisaoGeral({ filtros, dividir_por: 'faixa' }, signal), chaveFiltros);
+  const volume = useApi((signal) => obterVisaoGeral({ filtros }, signal), chaveFiltros);
   const [escolhidos, setEscolhidos] = useState<number[] | null>(null);
 
   // Começa pelos dois medicamentos com mais tratamentos no recorte.

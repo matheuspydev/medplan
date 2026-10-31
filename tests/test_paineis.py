@@ -4,12 +4,14 @@ Base SINTÉTICA do gerador. Os invariantes são os do CLAUDE.md, seção 1: nenh
 sem denominador e IC, nada de percentual abaixo do n mínimo.
 """
 
+import os
+import shutil
 import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
 
-from medplan import datamart, db, stats, synth
+from medplan import datamart, db, paineis, stats, synth
 from medplan.stats import Episodio
 from tests.test_api import CHAVES_IC, ComBanco, objetos, pct_python
 
@@ -45,7 +47,7 @@ class TestPaineis(ComBanco, InvariantesDeProporcao):
 
     ROTAS = {"/visao-geral": "visao-geral", "/pacientes": "pacientes", "/reacoes/resumo": "reacoes",
              "/reacoes/peso-por-imc": "peso-por-imc"}
-    FILTROS = {"sexo", "faixa_etaria_cod", "diagnostico", "faixa_imc_cod", "tabagista", "comorbidades"}
+    FILTROS = {"sexo", "faixa_etaria_cod", "diagnostico", "faixa_imc_cod", "tabagista", "data_de", "data_ate"}
 
     def post(self, painel, **corpo):
         return self.cliente.post(f"/api/v1/paineis/{painel}", json=corpo)
@@ -79,23 +81,79 @@ class TestPaineis(ComBanco, InvariantesDeProporcao):
         self.assertLessEqual(len(v["recentes"]), 5)
         self.verificar_proporcoes(v, 20)
 
-    def test_filtros_recortam_e_travam_a_divisao(self):
+    def test_filtros_recortam(self):
         tudo = self.get("/visao-geral")
-        mulheres = self.get("/visao-geral", sexo="feminino", dividir_por="sexo")
+        mulheres = self.get("/visao-geral", sexo="feminino")
         self.assertLess(mulheres["contagens"]["n_atendimentos"], tudo["contagens"]["n_atendimentos"])
-        self.assertEqual(mulheres["classe_por_grupo"]["fixados_por_filtro"], ["sexo"])
-        # a divisão ignora o próprio critério: as linhas de sexo continuam somando a base
-        linhas = {l["rotulo"]: l["n_atendimentos"] for l in mulheres["classe_por_grupo"]["linhas"]}
-        self.assertEqual(sum(linhas.values()), tudo["contagens"]["n_atendimentos"])
 
-    def test_classe_por_grupo_soma_cem_por_linha(self):
-        v = self.get("/visao-geral", dividir_por="imc")
-        for linha in v["classe_por_grupo"]["linhas"]:
-            self.assertEqual(sum(c["n_atendimentos_classe"] for c in linha["celulas"]), linha["n_atendimentos"])
+    def atendimentos(self):
+        conn = db.conectar(self.caminho)
+        try:
+            return datamart.ler_atendimentos(conn)
+        finally:
+            conn.close()
+
+    def test_periodo_recorta_pela_data_do_atendimento(self):
+        ats = self.atendimentos()
+        dia = sorted(a.data for a in ats)[len(ats) // 2]
+        ano = self.get("/visao-geral", data_de=f"{dia.year}-01-01", data_ate=f"{dia.year}-12-31")
+        self.assertEqual(ano["contagens"]["n_atendimentos"], sum(1 for a in ats if a.data.year == dia.year))
+        so_o_dia = self.get("/visao-geral", data_de=dia.isoformat(), data_ate=dia.isoformat())
+        self.assertEqual(so_o_dia["contagens"]["n_atendimentos"], sum(1 for a in ats if a.data == dia))
+        # pacientes: só quem tem atendimento no período, com a contagem dentro dele
+        pagina = self.get("/pacientes", data_de=dia.isoformat(), data_ate=dia.isoformat(), por_pagina=100)
+        self.assertEqual(pagina["total"], len({a.chave for a in ats if a.data == dia}))
+        self.assertTrue(all(i["ultimo_atendimento"] == dia.isoformat() for i in pagina["itens"]))
+        invertido = {"data_de": "2026-02-01", "data_ate": "2026-01-01"}
+        self.assertEqual(self.post("visao-geral", filtros=invertido).status_code, 422)
+        self.assertEqual(self.post("pacientes", **invertido).status_code, 422)
+
+    def test_tempo_entre_atendimentos(self):
+        t = self.get("/visao-geral")["tempo_entre_atendimentos"]
+        self.assertGreaterEqual(t["n_intervalos"], 20)
+        self.assertLessEqual(t["ic_inferior_dias"], t["media_dias"])
+        self.assertLessEqual(t["media_dias"], t["ic_superior_dias"])
+        # abaixo do n mínimo: sem média nem IC
+        pouco = paineis._tempo_entre_atendimentos(self.atendimentos()[:3], 20)
+        self.assertIsNone(pouco["media_dias"])
+        self.assertNotIn("ic_inferior_dias", pouco)
+
+    def test_base_em_cache_ate_o_banco_mudar(self):
+        copia = Path(self.pasta) / "copia.db"
+        shutil.copy(self.caminho, copia)
+        conn = db.conectar(copia)
+        try:
+            base = paineis.base_atual(conn)
+            self.assertIs(paineis.base_atual(conn), base)
+            conn.execute("DELETE FROM fato_reacao_adversa WHERE rowid = (SELECT MAX(rowid) FROM fato_reacao_adversa)")
+            conn.commit()
+            nova = paineis.base_atual(conn)
+            self.assertIsNot(nova, base)
+            self.assertEqual(len(nova.reacoes), len(base.reacoes) - 1)
+        finally:
+            conn.close()
+
+    def test_painel_ve_atendimento_recem_registrado(self):
+        copia = Path(self.pasta) / "copia_api.db"
+        shutil.copy(self.caminho, copia)
+        self.addCleanup(os.environ.__setitem__, "MEDPLAN_DB", os.environ["MEDPLAN_DB"])
+        os.environ["MEDPLAN_DB"] = str(copia)
+        antes = self.get("/visao-geral")["contagens"]["n_atendimentos"]
+        conn = db.conectar(copia)
+        try:
+            # duplica o último atendimento: só a contagem importa aqui
+            colunas = [r["name"] for r in conn.execute("PRAGMA table_info(fato_atendimento)") if r["name"] != "sk_atendimento"]
+            lista = ", ".join(colunas)
+            conn.execute(f"INSERT INTO fato_atendimento ({lista}) SELECT {lista} FROM fato_atendimento "
+                         "WHERE sk_atendimento = (SELECT MAX(sk_atendimento) FROM fato_atendimento)")
+            conn.commit()
+        finally:
+            conn.close()
+        self.assertEqual(self.get("/visao-geral")["contagens"]["n_atendimentos"], antes + 1)
 
     def test_filtro_desconhecido_e_recusado(self):
         self.assertEqual(self.post("visao-geral", filtros={"faixa_imc_cod": "nao_existe"}).status_code, 422)
-        self.assertEqual(self.post("visao-geral", filtros={"comorbidades": 7}).status_code, 422)
+        self.assertEqual(self.post("visao-geral", filtros={"comorbidades": 1}).status_code, 422)
         self.assertEqual(self.post("visao-geral", filtros={"nome": "x"}).status_code, 422)
 
     # ---- pacientes ------------------------------------------------------------------

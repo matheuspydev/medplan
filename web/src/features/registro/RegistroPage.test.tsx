@@ -21,6 +21,7 @@ const referencias: Referencias = {
     { id: 2, principio_ativo: 'fármaco b', codigo_atc: 'N0XXX02', classe_terapeutica: 'Classe sintética' },
   ],
   reacoes_adversas: [{ id: 4, termo: 'Termo sintético', soc: 'SOC sintético', gravidade_padrao: 'grave' }],
+  periodo_atendimentos: { primeiro: '2024-01-10', ultimo: '2026-08-20' },
   opcoes: {
     sexo: [
       { codigo: 'feminino', rotulo: 'Feminino' },

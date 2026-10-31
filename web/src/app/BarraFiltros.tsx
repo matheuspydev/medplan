@@ -1,13 +1,14 @@
 /**
- * Filtros globais na barra do topo: fichas removíveis, "Limpar" e o painel com os seis filtros.
+ * Filtros globais na barra do topo: fichas removíveis, "Limpar" e o painel com os filtros.
  * Cada mudança vale na hora (as telas recarregam com o recorte novo).
  */
 import { SlidersHorizontal, X } from 'lucide-react';
 import { useId, useState, type ChangeEvent } from 'react';
 import { rotuloGrupoCid, useCatalogo } from '../api/referencias';
 import { Button } from '../components/Button';
+import { anosDoPeriodo, CampoPeriodo, type Periodo } from '../components/CampoPeriodo';
 import type { FiltrosGlobais, Sexo } from '../api/types';
-import { fichasDosFiltros, ROTULOS_COMORBIDADES, useFiltros } from './filtros';
+import { fichasDosFiltros, useFiltros } from './filtros';
 
 export function BarraFiltros({ ativos }: { ativos: boolean }) {
   const catalogo = useCatalogo();
@@ -28,6 +29,12 @@ export function BarraFiltros({ ativos }: { ativos: boolean }) {
     else novo[chave] = valor;
     definir(novo);
   }
+  function mudarPeriodo(periodo: Periodo) {
+    const novo = { ...filtros, ...periodo };
+    if (!periodo.data_de) delete novo.data_de;
+    if (!periodo.data_ate) delete novo.data_ate;
+    definir(novo);
+  }
   const texto = (chave: 'faixa_etaria_cod' | 'diagnostico' | 'faixa_imc_cod') => (e: ChangeEvent<HTMLSelectElement>) =>
     mudar(chave, e.target.value || undefined);
 
@@ -35,10 +42,10 @@ export function BarraFiltros({ ativos }: { ativos: boolean }) {
     <>
       <div className="barra-topo__fichas" aria-label="Filtros ativos">
         {fichas.map((f) => (
-          <span key={f.chave} className="ficha-filtro">
+          <span key={f.rotulo} className="ficha-filtro">
             <span className="ficha-filtro__rotulo">{f.rotulo}</span>
             {f.valor}
-            <button type="button" className="ficha-filtro__remover" aria-label={`Remover filtro ${f.rotulo}`} onClick={() => remover(f.chave)}>
+            <button type="button" className="ficha-filtro__remover" aria-label={`Remover filtro ${f.rotulo}`} onClick={() => remover(f.chaves)}>
               <X size={14} aria-hidden="true" />
             </button>
           </span>
@@ -128,21 +135,10 @@ export function BarraFiltros({ ativos }: { ativos: boolean }) {
               <option value="false">Não</option>
             </select>
           </label>
-          <label className="painel-filtros__campo">
-            <span>Nº de comorbidades</span>
-            <select
-              className="controle-texto"
-              value={filtros.comorbidades ?? ''}
-              onChange={(e) => mudar('comorbidades', e.target.value === '' ? undefined : Number(e.target.value))}
-            >
-              <option value="">Qualquer</option>
-              {ROTULOS_COMORBIDADES.map((r, i) => (
-                <option key={r} value={i}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="painel-filtros__campo painel-filtros__campo--largo">
+            <span>Data do atendimento</span>
+            <CampoPeriodo valor={filtros} onChange={mudarPeriodo} anos={anosDoPeriodo(referencias.periodo_atendimentos)} />
+          </div>
           <Button variante="secundario" className="botao--pequeno painel-filtros__fechar" onClick={() => setAberto(false)}>
             Fechar
           </Button>

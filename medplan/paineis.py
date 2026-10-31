@@ -16,8 +16,11 @@ atendimento mais recente do tratamento (nos desfechos), como o grão do Data Mar
 
 from __future__ import annotations
 
+import math
+import os
 import sqlite3
 import statistics
+import threading
 import unicodedata
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -32,7 +35,6 @@ LINHAS = (("1", "1ª linha"), ("2", "2ª linha"), ("3+", "3ª linha ou mais"))
 FAIXAS_DIAS = ((0, 7, "0 a 7 dias"), (8, 14, "8 a 14 dias"), (15, 28, "15 a 28 dias"),
                (29, 56, "29 a 56 dias"), (57, 90, "57 a 90 dias"), (91, None, "mais de 90 dias"))
 GANHO_DE_PESO, PERDA_DE_PESO = "Ganho de peso", "Perda de peso"
-DIVISOES = ("faixa", "sexo", "imc", "tabagismo")
 
 
 def sem_acento(texto: str) -> str:
@@ -43,14 +45,15 @@ def sem_acento(texto: str) -> str:
 @dataclass(frozen=True)
 class Filtros:
     """Filtros globais. `diagnostico` aceita um código CID-10 ou um grupo ("F30-F39").
-    `comorbidades` = quantidade; 3 quer dizer "3 ou mais"."""
+    `data_de` e `data_ate` recortam pela data do atendimento, inclusive nas pontas."""
 
     sexo: str | None = None
     faixa_etaria_cod: str | None = None
     diagnostico: str | None = None
     faixa_imc_cod: str | None = None
     tabagista: bool | None = None
-    comorbidades: int | None = None
+    data_de: date | None = None
+    data_ate: date | None = None
 
     def aceita(self, a: Atendimento, ignorar: frozenset[str] = frozenset()) -> bool:
         return (
@@ -59,15 +62,12 @@ class Filtros:
             and (self.diagnostico is None or self.diagnostico in (a.cid10, a.grupo_cid))
             and (self.faixa_imc_cod is None or "imc" in ignorar or a.faixa_imc_cod == self.faixa_imc_cod)
             and (self.tabagista is None or "tabagismo" in ignorar or a.tabagista == self.tabagista)
-            and (self.comorbidades is None
-                 or (a.qtd_comorbidades >= 3 if self.comorbidades >= 3 else a.qtd_comorbidades == self.comorbidades))
+            and no_periodo(a.data, self.data_de, self.data_ate)
         )
 
-    @property
-    def fixados(self) -> list[str]:
-        """Divisões que um filtro já fixou: não servem para dividir (dariam uma linha só)."""
-        return [d for d, valor in (("faixa", self.faixa_etaria_cod), ("sexo", self.sexo),
-                                   ("imc", self.faixa_imc_cod), ("tabagismo", self.tabagista)) if valor is not None]
+
+def no_periodo(dia: date, de: date | None, ate: date | None) -> bool:
+    return (de is None or dia >= de) and (ate is None or dia <= ate)
 
 
 class Base:
@@ -92,6 +92,37 @@ class Base:
         return self.medicamentos[medicamento_id]["classe_terapeutica"]
 
 
+# Cache da Base: reler os fatos é mais de 90% do tempo de cada painel. Vale enquanto o
+# carimbo do banco não muda; qualquer atendimento, reação ou medicamento novo (pela API,
+# por carga de CSV ou por fora dela) muda o carimbo e a Base é relida. Os painéis só leem
+# a Base, então requisições simultâneas podem compartilhá-la.
+_CARIMBO_SQL = """
+    SELECT (SELECT COUNT(*) || ':' || IFNULL(MAX(sk_atendimento), 0) FROM fato_atendimento),
+           (SELECT COUNT(*) || ':' || IFNULL(MAX(rowid), 0) FROM fato_reacao_adversa),
+           (SELECT COUNT(*) || ':' || IFNULL(MAX(id), 0) FROM medicamento),
+           (SELECT COUNT(*) || ':' || IFNULL(MAX(id), 0) FROM reacao_adversa),
+           (SELECT COUNT(*) FROM cid10)
+"""
+_cache: tuple[tuple, Base] | None = None
+_trava = threading.Lock()
+
+
+def _carimbo(conn: sqlite3.Connection) -> tuple:
+    arquivo = conn.execute("PRAGMA database_list").fetchone()["file"]
+    # o inode distingue um banco recriado (bootstrap --forcar) com as mesmas contagens
+    return (arquivo, os.stat(arquivo).st_ino, *conn.execute(_CARIMBO_SQL).fetchone())
+
+
+def base_atual(conn: sqlite3.Connection) -> Base:
+    """A Base do banco desta conexão, relida só quando o carimbo muda."""
+    global _cache
+    carimbo = _carimbo(conn)
+    with _trava:
+        if _cache is None or _cache[0] != carimbo:
+            _cache = (carimbo, Base(conn))
+        return _cache[1]
+
+
 def _chave(t: Tratamento) -> tuple[str, int, date]:
     return (t.chave, t.medicamento_id, t.data_inicio)
 
@@ -103,26 +134,36 @@ def _linha(t: Tratamento) -> str | None:
     return "3+" if linha >= 3 else str(linha)
 
 
-def _divisao(base: Base, dividir_por: str) -> tuple[list[tuple[object, str]], callable]:
-    """Linhas (valor, rótulo) e a função que lê o valor de um atendimento."""
-    if dividir_por == "sexo":
-        return [(c, r) for c, r in rotulos.SEXO.items()], lambda a: a.sexo
-    if dividir_por == "imc":
-        return [(f["codigo"], f["rotulo"]) for f in base.imcs] + [(None, datamart.IMC_NAO_INFORMADO)], lambda a: a.faixa_imc_cod
-    if dividir_por == "tabagismo":
-        return [(True, "Tabagista"), (False, "Não tabagista")], lambda a: a.tabagista
-    return [(f["codigo"], f["rotulo"]) for f in base.faixas], lambda a: a.faixa_etaria_cod
-
-
 def _motivos(eventos: dict[str, int], n: int, n_minimo: int) -> list[dict]:
     return [{"motivo": m, "rotulo": rotulo, **proporcao(eventos.get(m, 0), n, n_minimo)}
             for m, rotulo in rotulos.MOTIVO_DESCONTINUACAO.items()]
 
 
+def _tempo_entre_atendimentos(ats: list[Atendimento], n_minimo: int) -> dict:
+    """Média de dias entre datas consecutivas de atendimento do mesmo paciente, com IC95%
+    (aproximação normal). Atendimentos no mesmo dia contam como uma data. Abaixo do n
+    mínimo de intervalos, `media_dias` é None e não há IC."""
+    datas: dict[str, set[date]] = defaultdict(set)
+    for a in ats:
+        datas[a.chave].add(a.data)
+    intervalos = []
+    for dias in datas.values():
+        ordem = sorted(dias)
+        intervalos += [(b - a).days for a, b in zip(ordem, ordem[1:])]
+    n = len(intervalos)
+    resumo = {"n_intervalos": n, "n_pacientes": sum(1 for d in datas.values() if len(d) >= 2), "media_dias": None}
+    if n < max(n_minimo, 2):
+        return resumo
+    media = statistics.fmean(intervalos)
+    margem = 1.96 * statistics.stdev(intervalos) / math.sqrt(n)
+    return {**resumo, "media_dias": round(media, 1),
+            "ic_inferior_dias": round(max(0.0, media - margem), 1), "ic_superior_dias": round(media + margem, 1)}
+
+
 # =============================================================================
 # Visão geral
 # =============================================================================
-def visao_geral(base: Base, filtros: Filtros, horizonte_dias: int, n_minimo: int, dividir_por: str) -> dict:
+def visao_geral(base: Base, filtros: Filtros, horizonte_dias: int, n_minimo: int) -> dict:
     ats = [a for a in base.atendimentos if filtros.aceita(a)]
     ids = {a.sk_atendimento for a in ats}
     trats = [t for t in base.tratamentos if filtros.aceita(t.ultimo)]
@@ -133,19 +174,6 @@ def visao_geral(base: Base, filtros: Filtros, horizonte_dias: int, n_minimo: int
     for a in ats:
         pacientes_por_cid[a.cid10].add(a.chave)
     por_medicamento = Counter(t.medicamento_id for t in trats)
-
-    linhas, valor_de = _divisao(base, dividir_por)
-    classes = [c for c, _ in Counter(base.classe(a.medicamento_id) for a in ats).most_common()]
-    matriz = []
-    for valor, rotulo in linhas:
-        da_linha = [a for a in base.atendimentos if valor_de(a) == valor and filtros.aceita(a, frozenset({dividir_por}))]
-        contagem = Counter(base.classe(a.medicamento_id) for a in da_linha)
-        matriz.append({
-            "rotulo": rotulo,
-            "n_atendimentos": len(da_linha),
-            "celulas": [{"classe": c, **proporcao(contagem.get(c, 0), len(da_linha), n_minimo),
-                         "n_atendimentos_classe": contagem.get(c, 0)} for c in classes],
-        })
 
     ultimo_por_paciente: dict[str, Atendimento] = {}
     for a in ats:
@@ -183,8 +211,7 @@ def visao_geral(base: Base, filtros: Filtros, horizonte_dias: int, n_minimo: int
         },
         # denominador: os tratamentos descontinuados
         "motivos": _motivos(res.eventos_por_motivo, n_desc, n_minimo),
-        "classe_por_grupo": {"dividir_por": dividir_por, "fixados_por_filtro": filtros.fixados,
-                             "classes": classes, "linhas": matriz},
+        "tempo_entre_atendimentos": _tempo_entre_atendimentos(ats, n_minimo),
         "recentes": [
             {"chave_pseudonima": a.chave, "sexo": a.sexo, "faixa_etaria_cod": a.faixa_etaria_cod,
              "cid10": a.cid10, "descricao_cid": base.cids[a.cid10], "n_atendimentos": n_por_paciente[a.chave],
@@ -198,10 +225,12 @@ def visao_geral(base: Base, filtros: Filtros, horizonte_dias: int, n_minimo: int
 # Pacientes
 # =============================================================================
 def pacientes(base: Base, q: str | None, sexo: str | None, faixa_etaria_cod: str | None, grupo: str | None,
-              pagina: int, por_pagina: int) -> dict:
+              data_de: date | None, data_ate: date | None, pagina: int, por_pagina: int) -> dict:
+    """Com período, só os atendimentos dentro dele contam (o último e a contagem também)."""
     por_paciente: dict[str, list[Atendimento]] = defaultdict(list)
     for a in base.atendimentos:
-        por_paciente[a.chave].append(a)
+        if no_periodo(a.data, data_de, data_ate):
+            por_paciente[a.chave].append(a)
 
     itens = []
     busca = sem_acento(q.strip()) if q else ""

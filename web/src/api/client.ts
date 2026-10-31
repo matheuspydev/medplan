@@ -17,7 +17,6 @@ import type {
   Medicamento,
   MedicamentoEntrada,
   Qualidade,
-  DivisaoGrupo,
   FichaMedicamento,
   FichaPaciente,
   FiltrosGlobais,
@@ -117,14 +116,23 @@ export function registrarAtendimento(entrada: AtendimentoEntrada, signal?: Abort
 
 // ---- painéis: POST com corpo (filtros e chave nunca vão na URL) ----------------------
 export function obterVisaoGeral(
-  entrada: { filtros: FiltrosGlobais; dividir_por: DivisaoGrupo; horizonte_dias?: number; n_minimo?: number },
+  entrada: { filtros: FiltrosGlobais; horizonte_dias?: number; n_minimo?: number },
   signal?: AbortSignal,
 ): Promise<VisaoGeral> {
   return requisitar('POST', '/paineis/visao-geral', entrada, signal);
 }
 
 export function listarPacientes(
-  entrada: { q?: string; sexo?: Sexo; faixa_etaria_cod?: string; grupo?: string; pagina: number; por_pagina?: number },
+  entrada: {
+    q?: string;
+    sexo?: Sexo;
+    faixa_etaria_cod?: string;
+    grupo?: string;
+    data_de?: string;
+    data_ate?: string;
+    pagina: number;
+    por_pagina?: number;
+  },
   signal?: AbortSignal,
 ): Promise<ListaPacientes> {
   return requisitar('POST', '/paineis/pacientes', entrada, signal);

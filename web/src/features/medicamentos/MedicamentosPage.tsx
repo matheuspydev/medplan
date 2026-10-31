@@ -33,7 +33,7 @@ export default function MedicamentosPage() {
   const [adicionado, setAdicionado] = useState<string | null>(null);
   const chaveFiltros = JSON.stringify(filtros);
   // Contagens da grade: tratamentos por medicamento no recorte (vêm da visão geral, sem cálculo aqui).
-  const volume = useApi((signal) => obterVisaoGeral({ filtros, dividir_por: 'faixa' }, signal), chaveFiltros);
+  const volume = useApi((signal) => obterVisaoGeral({ filtros }, signal), chaveFiltros);
   const ficha = useApi(
     selecionado === null ? null : (signal) => obterFichaMedicamento({ medicamento_id: selecionado, filtros }, signal),
     `${selecionado}|${chaveFiltros}`,
